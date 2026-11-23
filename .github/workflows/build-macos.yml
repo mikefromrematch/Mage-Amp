@@ -9,7 +9,8 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-14
+    # Use a standard hosted macOS runner label (avoid custom ARM runner configuration).
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,18 +19,18 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --config Release --target MAGEStandalone
-
-      - name: Locate app
-        run: |
-          APP="$(find build -name 'MAGE.app' -type d -print -quit)"
-          test -n "$APP"
-          echo "APP_PATH=$APP" >> "$GITHUB_ENV"
+        run: cmake --build build --config Release
 
       - name: Package app
         run: |
           mkdir -p dist
-          ditto "$APP_PATH" dist/MAGE.app
+          APP="$(find build -name 'MAGE.app' -type d -print -quit)"
+          if [ -z "$APP" ]; then
+            echo "Could not find MAGE.app in build output"
+            find build -maxdepth 6 -print
+            exit 1
+          fi
+          ditto "$APP" dist/MAGE.app
           cd dist
           zip -r MAGE-macOS.zip MAGE.app
 
