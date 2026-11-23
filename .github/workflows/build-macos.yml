@@ -1,0 +1,39 @@
+name: Build MAGE macOS App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --target MAGEStandalone
+
+      - name: Locate app
+        run: |
+          APP="$(find build -name 'MAGE.app' -type d -print -quit)"
+          test -n "$APP"
+          echo "APP_PATH=$APP" >> "$GITHUB_ENV"
+
+      - name: Package app
+        run: |
+          mkdir -p dist
+          ditto "$APP_PATH" dist/MAGE.app
+          cd dist
+          zip -r MAGE-macOS.zip MAGE.app
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MAGE-macOS
+          path: dist/MAGE-macOS.zip
+          retention-days: 30
