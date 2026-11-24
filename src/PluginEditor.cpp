@@ -106,7 +106,7 @@ namespace
     }
 
     void drawPedal(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour accent,
-                   const juce::String& name, const juce::String& descriptor)
+                   const juce::String& name, const juce::String& descriptor, bool enabled)
     {
         juce::Path body;
         body.startNewSubPath(r.getX() + 10.0f, r.getY());
@@ -131,6 +131,17 @@ namespace
         g.fillRoundedRectangle(insetBody, 8.0f);
         g.setColour(accent.withAlpha(0.85f));
         g.drawRoundedRectangle(insetBody, 8.0f, 1.2f);
+        const float ledX = insetBody.getRight() - 13.0f;
+        const float ledY = insetBody.getY() + 13.0f;
+        if (enabled)
+        {
+            g.setColour(accent.withAlpha(0.22f));
+            g.fillEllipse(ledX - 7.0f, ledY - 7.0f, 14.0f, 14.0f);
+        }
+        g.setColour(enabled ? accent : juce::Colour(0xff354253));
+        g.fillEllipse(ledX - 3.0f, ledY - 3.0f, 6.0f, 6.0f);
+        g.setColour(enabled ? accent.withAlpha(0.95f) : muted.withAlpha(0.45f));
+        g.drawEllipse(ledX - 4.5f, ledY - 4.5f, 9.0f, 9.0f, 1.0f);
         g.setColour(accent);
         g.setFont(juce::Font(juce::FontOptions(11.0f, juce::Font::bold)));
         g.drawText(name, insetBody.getX() + 5.0f, insetBody.getY() + 7.0f,
@@ -269,6 +280,27 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
     irStatus.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(irStatus);
 
+    const char* pedalIDs[] = { "octaveEnabled", "driveEnabled", "delayEnabled", "reverbEnabled" };
+    const char* pedalNames[] = { "OCTAVE", "DRIVE", "DELAY", "REVERB" };
+    for (int i = 0; i < 4; ++i)
+    {
+        pedalSwitches[i].setClickingTogglesState(true);
+        pedalSwitches[i].setButtonText("OFF");
+        pedalSwitches[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1b2635));
+        pedalSwitches[i].setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff174b55));
+        pedalSwitches[i].setColour(juce::TextButton::textColourOffId, muted);
+        pedalSwitches[i].setColour(juce::TextButton::textColourOnId, cyan);
+        pedalSwitches[i].onClick = [this, i, pedalNames]
+        {
+            pedalSwitches[i].setButtonText(pedalSwitches[i].getToggleState() ? "ON" : "OFF");
+            repaint();
+        };
+        addAndMakeVisible(pedalSwitches[i]);
+        pedalSwitchAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+            processor.state, pedalIDs[i], pedalSwitches[i]);
+        pedalSwitches[i].setButtonText(pedalSwitches[i].getToggleState() ? "ON" : "OFF");
+    }
+
     const char* toggleIDs[] = { "gateEnabled", "gatePost", "octaveDown", "driveBoost", "delaySync" };
     const char* toggleNames[] = { "GATE ON", "POST AMP", "SUB OCTAVE", "BOOST", "TEMPO SYNC" };
     for (int i = 0; i < 5; ++i)
@@ -357,7 +389,9 @@ void MageAudioProcessorEditor::paint(juce::Graphics& g)
     g.drawText("STOMPBOX MODULES", 48, 749, 200, 12, juce::Justification::centredLeft);
     for (int i = 0; i < 5; ++i)
         drawPedal(g, { innerX + i * (cell + gap), pedalTop + 48.0f, cell, h - pedalTop - 84.0f },
-                  accents[i], headings[i], captions[i]);
+                  accents[i], headings[i], captions[i],
+                  i < 4 && processor.state.getRawParameterValue(
+                      i == 0 ? "octaveEnabled" : i == 1 ? "driveEnabled" : i == 2 ? "delayEnabled" : "reverbEnabled")->load() > 0.5f);
 
     g.setColour(muted);
     g.setFont(juce::Font(juce::FontOptions(8.5f, juce::Font::bold)));
@@ -414,7 +448,7 @@ void MageAudioProcessorEditor::resized()
         const int cell = pedalWidth / count;
         const int left = x + position * cell;
         labels[index].setBounds(left + 2, pedalY, cell - 4, 18);
-        controls[index].setBounds(left + 3, pedalY + 18, cell - 6, juce::jmin(104, pedalH - 42));
+        controls[index].setBounds(left + 3, pedalY + 18, cell - 6, juce::jmin(66, pedalH - 48));
     };
 
     place(9, 0, 1, 0);
@@ -422,6 +456,12 @@ void MageAudioProcessorEditor::resized()
     place(13, 2, 3, 0); place(14, 2, 3, 1); place(15, 2, 3, 2);
     place(16, 3, 4, 0); place(17, 3, 4, 1); place(18, 3, 4, 2); place(19, 3, 4, 3);
     place(20, 4, 1, 0);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        const int x = pedalX + i * (pedalWidth + gap);
+        pedalSwitches[i].setBounds(x + pedalWidth / 2 - 25, h - 91, 50, 23);
+    }
 
     toggles[2].setBounds(pedalX + 6, h - 43, pedalWidth - 12, 22);
     toggles[3].setBounds(pedalX + pedalWidth + gap + 4, h - 43, pedalWidth - 8, 22);
