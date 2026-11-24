@@ -1,12 +1,120 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-MageAudioProcessor::MageAudioProcessor():AudioProcessor(BusesProperties().withInput("Input",juce::AudioChannelSet::stereo(),true).withOutput("Output",juce::AudioChannelSet::stereo(),true)),state(*this,nullptr,"MAGE",createLayout()){}
-juce::AudioProcessorValueTreeState::ParameterLayout MageAudioProcessor::createLayout(){using F=juce::AudioParameterFloat;juce::AudioProcessorValueTreeState::ParameterLayout p;auto f=[&](const char* id,float lo,float hi,float d){p.add(std::make_unique<F>(id,id,lo,hi,d));};f("gain",0,10,6);f("master",0,10,5);f("bass",0,10,5);f("mid",0,10,5);f("treble",0,10,5);f("presence",0,10,5);f("depth",0,10,5);f("gate",-90,0,-45);f("drive",0,10,0);f("delayMix",0,1,0);f("reverbMix",0,1,0);return p;}
-void MageAudioProcessor::prepareToPlay(double sr,int bs){spec={sr,(juce::uint32)bs,(juce::uint32)getTotalNumOutputChannels()};delay.setMaximumDelayInSamples((int)sr*2);delay.prepare(spec);delay.reset();reverb.setSampleRate(sr);}
-void MageAudioProcessor::releaseResources(){delay.reset();reverb.reset();}
-bool MageAudioProcessor::isBusesLayoutSupported(const BusesLayout& b)const{return b.getMainInputChannelSet()==b.getMainOutputChannelSet()&&(b.getMainOutputChannelSet()==juce::AudioChannelSet::mono()||b.getMainOutputChannelSet()==juce::AudioChannelSet::stereo());}
-void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& b,juce::MidiBuffer&){juce::ScopedNoDenormals n;auto gain=state.getRawParameterValue("gain")->load();auto master=state.getRawParameterValue("master")->load();auto drive=state.getRawParameterValue("drive")->load();auto mix=state.getRawParameterValue("delayMix")->load();auto rm=state.getRawParameterValue("reverbMix")->load();delay.setDelay(spec.sampleRate*.35);juce::dsp::Reverb::Parameters rp;rp.roomSize=.5f;rp.wetLevel=rm;rp.dryLevel=1;reverb.setParameters(rp);for(int c=0;c<b.getNumChannels();++c){auto* x=b.getWritePointer(c);for(int i=0;i<b.getNumSamples();++i){float s=x[i];s=std::tanh(s*(1+gain*.8f+drive));s*=juce::Decibels::decibelsToGain((master-5)*2);float d=delay.popSample(c);delay.pushSample(c,s+d*.25f);x[i]=s*(1-mix)+d*mix;}}if(b.getNumChannels()==2)reverb.processStereo(b.getWritePointer(0),b.getWritePointer(1),b.getNumSamples());}
-void MageAudioProcessor::getStateInformation(juce::MemoryBlock& d){auto t=state.copyState();juce::MemoryOutputStream m(d,false);t.writeToStream(m);}
-void MageAudioProcessor::setStateInformation(const void* d,int s){auto t=juce::ValueTree::readFromData(d,(size_t)s);if(t.isValid())state.replaceState(t);}
-juce::AudioProcessorEditor* MageAudioProcessor::createEditor(){return new MageAudioProcessorEditor(*this);}
-juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter(){return new MageAudioProcessor();}
+
+MageAudioProcessor::MageAudioProcessor()
+    : AudioProcessor(BusesProperties()
+          .withInput("Input", juce::AudioChannelSet::stereo(), true)
+          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+      state(*this, nullptr, "MAGE", createLayout())
+{
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout MageAudioProcessor::createLayout()
+{
+    using FloatParameter = juce::AudioParameterFloat;
+    juce::AudioProcessorValueTreeState::ParameterLayout parameters;
+    auto addFloat = [&parameters](const char* id, float minimum, float maximum, float initial)
+    {
+        parameters.add(std::make_unique<FloatParameter>(id, id, minimum, maximum, initial));
+    };
+
+    addFloat("gain", 0.0f, 10.0f, 6.0f);
+    addFloat("master", 0.0f, 10.0f, 5.0f);
+    addFloat("bass", 0.0f, 10.0f, 5.0f);
+    addFloat("mid", 0.0f, 10.0f, 5.0f);
+    addFloat("treble", 0.0f, 10.0f, 5.0f);
+    addFloat("presence", 0.0f, 10.0f, 5.0f);
+    addFloat("depth", 0.0f, 10.0f, 5.0f);
+    addFloat("gate", -90.0f, 0.0f, -45.0f);
+    addFloat("drive", 0.0f, 10.0f, 0.0f);
+    addFloat("delayMix", 0.0f, 1.0f, 0.0f);
+    addFloat("reverbMix", 0.0f, 1.0f, 0.0f);
+    return parameters;
+}
+
+void MageAudioProcessor::prepareToPlay(double sampleRate, int blockSize)
+{
+    spec = { sampleRate,
+             static_cast<juce::uint32>(blockSize),
+             static_cast<juce::uint32>(getTotalNumOutputChannels()) };
+
+    delay.setMaximumDelayInSamples(static_cast<int>(sampleRate * 2.0));
+    delay.prepare(spec);
+    delay.reset();
+    reverb.prepare(spec);
+    reverb.reset();
+}
+
+void MageAudioProcessor::releaseResources()
+{
+    delay.reset();
+    reverb.reset();
+}
+
+bool MageAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    const auto output = layouts.getMainOutputChannelSet();
+    return layouts.getMainInputChannelSet() == output
+        && (output == juce::AudioChannelSet::mono() || output == juce::AudioChannelSet::stereo());
+}
+
+void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+{
+    juce::ScopedNoDenormals noDenormals;
+
+    const auto gain = state.getRawParameterValue("gain")->load();
+    const auto master = state.getRawParameterValue("master")->load();
+    const auto drive = state.getRawParameterValue("drive")->load();
+    const auto delayMix = state.getRawParameterValue("delayMix")->load();
+    const auto reverbMix = state.getRawParameterValue("reverbMix")->load();
+
+    delay.setDelay(static_cast<float>(spec.sampleRate * 0.35));
+
+    juce::dsp::Reverb::Parameters reverbParameters;
+    reverbParameters.roomSize = 0.5f;
+    reverbParameters.wetLevel = reverbMix;
+    reverbParameters.dryLevel = 1.0f;
+    reverb.setParameters(reverbParameters);
+
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+    {
+        auto* samples = buffer.getWritePointer(channel);
+        for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+        {
+            auto processed = std::tanh(samples[sample] * (1.0f + gain * 0.8f + drive));
+            processed *= juce::Decibels::decibelsToGain((master - 5.0f) * 2.0f);
+
+            const auto delayed = delay.popSample(channel);
+            delay.pushSample(channel, processed + delayed * 0.25f);
+            samples[sample] = processed * (1.0f - delayMix) + delayed * delayMix;
+        }
+    }
+
+    juce::dsp::AudioBlock<float> audioBlock(buffer);
+    juce::dsp::ProcessContextReplacing<float> context(audioBlock);
+    reverb.process(context);
+}
+
+void MageAudioProcessor::getStateInformation(juce::MemoryBlock& destination)
+{
+    auto tree = state.copyState();
+    juce::MemoryOutputStream stream(destination, false);
+    tree.writeToStream(stream);
+}
+
+void MageAudioProcessor::setStateInformation(const void* data, int size)
+{
+    auto tree = juce::ValueTree::readFromData(data, static_cast<size_t>(size));
+    if (tree.isValid())
+        state.replaceState(tree);
+}
+
+juce::AudioProcessorEditor* MageAudioProcessor::createEditor()
+{
+    return new MageAudioProcessorEditor(*this);
+}
+
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    return new MageAudioProcessor();
+}
