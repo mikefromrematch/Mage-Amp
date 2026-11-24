@@ -1,41 +1,55 @@
 name: Build MAGE macOS App
 
 on:
+  # Only trusted pushes and manually approved runs may use the personal Mac runner.
+  # Do not add pull_request here: this is a public repository and fork code must
+  # never execute on the self-hosted machine.
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: [main, setup/initial-files]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build-macos:
-    runs-on: macos-14
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 45 # Allow JUCE to configure and compile on the local M4
     steps:
-      - name: Checkout
+      - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build --config Release --target MAGEStandalone
-
-      - name: Locate app
+      - name: Add Homebrew tools to PATH
         run: |
-          APP="$(find build -name 'MAGE.app' -type d -print -quit)"
-          test -n "$APP"
-          echo "APP_PATH=$APP" >> "$GITHUB_ENV"
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "CMake location: /opt/homebrew/bin/cmake"
+          /opt/homebrew/bin/cmake --version
 
-      - name: Package app
+      - name: Configure JUCE project
+        run: /opt/homebrew/bin/cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build standalone app
+        run: /opt/homebrew/bin/cmake --build build --config Release --target MAGE_Standalone --parallel 2
+
+      - name: Package standalone app
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p dist
-          ditto "$APP_PATH" dist/MAGE.app
+          APP="$(find build -type d -name 'MAGE.app' -print -quit)"
+          if [[ -z "$APP" ]]; then
+            echo "MAGE.app was not produced. Build output:"
+            find build -maxdepth 7 -print
+            exit 1
+          fi
+          ditto "$APP" dist/MAGE.app
           cd dist
-          zip -r MAGE-macOS.zip MAGE.app
+          ditto -c -k --sequesterRsrc --keepParent MAGE.app MAGE-macOS.zip
 
-      - name: Upload app artifact
+      - name: Upload test app
         uses: actions/upload-artifact@v4
         with:
-          name: MAGE-macOS
+          name: MAGE-macOS-test
           path: dist/MAGE-macOS.zip
-          retention-days: 30
+          if-no-files-found: error
+          retention-days: 14
