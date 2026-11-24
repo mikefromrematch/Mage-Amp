@@ -207,12 +207,13 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
             x = presence[ch].processSample(x);
 
             // Drive pedal: asymmetrical soft clipping with a user-controlled tone filter.
-            if (driveEnabled)
             {
-                const float preDrive = x * (ampDrive * driveGain * (boost ? 1.35f : 1.0f));
-                float driven = std::tanh(preDrive) * (1.0f + driveAmount * 0.08f);
-                driven = driveTone[ch].processSample(driven);
-                x = driven * driveOutput;
+                const float pedalDrive = driveEnabled ? driveGain * (boost ? 1.35f : 1.0f) : 1.0f;
+                const float preDrive = x * ampDrive * pedalDrive;
+                float driven = std::tanh(preDrive) * (1.0f + (driveEnabled ? driveAmount * 0.08f : 0.0f));
+                if (driveEnabled)
+                    driven = driveTone[ch].processSample(driven) * driveOutput;
+                x = driven;
             }
 
             // Octave pedal: selectable sub-octave divider or rectified upper harmonic.
