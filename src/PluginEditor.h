@@ -28,6 +28,8 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[23];
     juce::ToggleButton toggles[5];
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> toggleAttachments[5];
+    juce::TextButton pedalSwitches[4];
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> pedalSwitchAttachments[4];
     juce::TextButton loadIRButton { "LOAD IR" };
     juce::TextButton clearIRButton { "BYPASS IR" };
     juce::Label irStatus;
