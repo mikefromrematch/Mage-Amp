@@ -230,16 +230,16 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
         "gain", "bass", "mid", "treble", "presence", "depth", "master",
         "gate", "gateDecay", "octaveMix", "drive", "driveTone", "driveLevel",
         "delayTime", "delayFeedback", "delayMix", "reverbDecay", "reverbSize",
-        "reverbTone", "reverbMix", "output", "lowCut", "highCut"
+        "reverbTone", "reverbMix", "output", "lowCut", "highCut", "octaveTone", "octaveLevel"
     };
     const char* names[] = {
         "GAIN", "BASS", "MIDDLE", "TREBLE", "PRESENCE", "DEPTH", "MASTER",
         "THRESHOLD", "RELEASE", "OCTAVE MIX", "DRIVE", "TONE", "LEVEL",
         "TIME", "FEEDBACK", "MIX", "DECAY", "SIZE", "TONE", "MIX", "OUTPUT",
-        "LOW CUT", "HIGH CUT"
+        "LOW CUT", "HIGH CUT", "TONE", "LEVEL"
     };
 
-    for (int i = 0; i < 23; ++i)
+    for (int i = 0; i < 25; ++i)
     {
         auto& slider = controls[i];
         slider.setLookAndFeel(&knobLookAndFeel);
@@ -569,7 +569,11 @@ void MageAudioProcessorEditor::resized()
     // Pedal controls: match the reference's individual hardware enclosures.
     const int octaveX[] = { 96, 178, 260 };
     labels[9].setBounds(bounds(96, 735, 82, 20));
-    controls[9].setBounds(bounds(98, 647, 78, 86));
+    controls[9].setBounds(bounds(96, 647, 82, 86));
+    labels[23].setBounds(bounds(181, 735, 82, 20));
+    controls[23].setBounds(bounds(181, 647, 82, 86));
+    labels[24].setBounds(bounds(266, 735, 82, 20));
+    controls[24].setBounds(bounds(266, 647, 82, 86));
     toggles[2].setBounds(bounds(183, 616, 110, 27));
 
     const int driveX[] = { 426, 502, 578 };
