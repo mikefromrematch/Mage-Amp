@@ -1,42 +1,48 @@
 name: Build MAGE macOS App
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-macos:
-    # Use a standard hosted macOS runner label (avoid custom ARM runner configuration).
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
-      - name: Checkout
+      - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Configure
+      - name: Configure JUCE project
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build
-        run: cmake --build build --config Release
+      - name: Build standalone app
+        run: cmake --build build --config Release --target MAGE_Standalone --parallel 2
 
-      - name: Package app
+      - name: Package standalone app
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p dist
-          APP="$(find build -name 'MAGE.app' -type d -print -quit)"
-          if [ -z "$APP" ]; then
-            echo "Could not find MAGE.app in build output"
-            find build -maxdepth 6 -print
+          APP="$(find build -type d -name 'MAGE.app' -print -quit)"
+          if [[ -z "$APP" ]]; then
+            echo "MAGE.app was not produced. Build output:"
+            find build -maxdepth 7 -print
             exit 1
           fi
           ditto "$APP" dist/MAGE.app
           cd dist
-          zip -r MAGE-macOS.zip MAGE.app
+          ditto -c -k --sequesterRsrc --keepParent MAGE.app MAGE-macOS.zip
 
-      - name: Upload app artifact
+      - name: Upload test app
         uses: actions/upload-artifact@v4
         with:
-          name: MAGE-macOS
+          name: MAGE-macOS-test
           path: dist/MAGE-macOS.zip
-          retention-days: 30
+          if-no-files-found: error
+          retention-days: 14
