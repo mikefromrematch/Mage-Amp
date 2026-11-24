@@ -61,6 +61,96 @@ namespace
             g.fillEllipse(p.x - 1.0f, p.y - 1.0f, 2.0f, 2.0f);
         }
     }
+
+    void drawChassis(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour accent,
+                     const juce::String& heading, const juce::String& detail)
+    {
+        juce::Path shell;
+        shell.startNewSubPath(r.getX() + 18.0f, r.getY());
+        shell.lineTo(r.getRight() - 18.0f, r.getY());
+        shell.lineTo(r.getRight(), r.getY() + 18.0f);
+        shell.lineTo(r.getRight(), r.getBottom() - 18.0f);
+        shell.lineTo(r.getRight() - 18.0f, r.getBottom());
+        shell.lineTo(r.getX() + 18.0f, r.getBottom());
+        shell.lineTo(r.getX(), r.getBottom() - 18.0f);
+        shell.lineTo(r.getX(), r.getY() + 18.0f);
+        shell.closeSubPath();
+        g.setColour(juce::Colour(0xaa000000));
+        g.fillPath(shell, juce::AffineTransform::translation(0.0f, 6.0f));
+        juce::ColourGradient finish(juce::Colour(0xff536278), r.getX(), r.getY(),
+                                    juce::Colour(0xff101722), r.getRight(), r.getBottom(), false);
+        g.setGradientFill(finish);
+        g.fillPath(shell);
+        g.setColour(juce::Colour(0xff8495a9));
+        g.strokePath(shell, juce::PathStrokeType(1.5f));
+        auto face = r.reduced(7.0f);
+        g.setColour(juce::Colour(0xff080e18));
+        g.fillRoundedRectangle(face, 11.0f);
+        g.setColour(accent.withAlpha(0.48f));
+        g.drawRoundedRectangle(face, 11.0f, 1.2f);
+        g.setColour(accent);
+        g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
+        g.drawText(heading, face.getX() + 20.0f, face.getY() + 9.0f,
+                   face.getWidth() - 40.0f, 18.0f, juce::Justification::centredLeft);
+        g.setColour(muted);
+        g.setFont(juce::Font(juce::FontOptions(8.0f, juce::Font::bold)));
+        g.drawText(detail, face.getX() + 20.0f, face.getY() + 28.0f,
+                   face.getWidth() - 40.0f, 13.0f, juce::Justification::centredLeft);
+        for (int i = 0; i < 4; ++i)
+        {
+            const float bx = (i % 2 == 0) ? r.getX() + 9.0f : r.getRight() - 13.0f;
+            const float by = (i < 2) ? r.getY() + 9.0f : r.getBottom() - 13.0f;
+            g.setColour(juce::Colour(0xff9aa9b9));
+            g.fillEllipse(bx, by, 4.0f, 4.0f);
+        }
+    }
+
+    void drawPedal(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour accent,
+                   const juce::String& name, const juce::String& descriptor)
+    {
+        juce::Path body;
+        body.startNewSubPath(r.getX() + 10.0f, r.getY());
+        body.lineTo(r.getRight() - 10.0f, r.getY());
+        body.lineTo(r.getRight(), r.getY() + 12.0f);
+        body.lineTo(r.getRight() - 3.0f, r.getBottom() - 13.0f);
+        body.lineTo(r.getRight() - 15.0f, r.getBottom());
+        body.lineTo(r.getX() + 15.0f, r.getBottom());
+        body.lineTo(r.getX() + 3.0f, r.getBottom() - 13.0f);
+        body.lineTo(r.getX(), r.getY() + 12.0f);
+        body.closeSubPath();
+        g.setColour(juce::Colour(0x99000000));
+        g.fillPath(body, juce::AffineTransform::translation(2.0f, 5.0f));
+        juce::ColourGradient shell(juce::Colour(0xff46566b), r.getX(), r.getY(),
+                                   juce::Colour(0xff101722), r.getRight(), r.getBottom(), false);
+        g.setGradientFill(shell);
+        g.fillPath(body);
+        g.setColour(juce::Colour(0xff71849b));
+        g.strokePath(body, juce::PathStrokeType(1.3f));
+        auto insetBody = r.reduced(6.0f, 7.0f);
+        g.setColour(juce::Colour(0xff0a101a));
+        g.fillRoundedRectangle(insetBody, 8.0f);
+        g.setColour(accent.withAlpha(0.85f));
+        g.drawRoundedRectangle(insetBody, 8.0f, 1.2f);
+        g.setColour(accent);
+        g.setFont(juce::Font(juce::FontOptions(11.0f, juce::Font::bold)));
+        g.drawText(name, insetBody.getX() + 5.0f, insetBody.getY() + 7.0f,
+                   insetBody.getWidth() - 10.0f, 16.0f, juce::Justification::centred);
+        g.setColour(muted);
+        g.setFont(juce::Font(juce::FontOptions(7.5f, juce::Font::bold)));
+        g.drawText(descriptor, insetBody.getX() + 4.0f, insetBody.getY() + 24.0f,
+                   insetBody.getWidth() - 8.0f, 12.0f, juce::Justification::centred);
+        const float foot = juce::jmin(25.0f, insetBody.getWidth() * 0.22f);
+        const float fx = insetBody.getCentreX() - foot * 0.5f;
+        const float fy = insetBody.getBottom() - foot - 8.0f;
+        g.setColour(juce::Colour(0xff02050a));
+        g.fillEllipse(fx - 3.0f, fy - 3.0f, foot + 6.0f, foot + 6.0f);
+        g.setColour(juce::Colour(0xff64758a));
+        g.fillEllipse(fx, fy, foot, foot);
+        g.setColour(accent.withAlpha(0.7f));
+        g.drawEllipse(fx, fy, foot, foot, 1.3f);
+        g.setColour(juce::Colour(0xff172334));
+        g.fillEllipse(fx + foot * 0.28f, fy + foot * 0.28f, foot * 0.44f, foot * 0.44f);
+    }
 }
 
 void MageKnobLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
@@ -159,6 +249,26 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
             processor.state, ids[i], slider);
     }
 
+    loadIRButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff17344a));
+    loadIRButton.setColour(juce::TextButton::textColourOffId, cyan);
+    loadIRButton.setColour(juce::TextButton::textColourOnId, ivory);
+    loadIRButton.onClick = [this] { chooseCabinetIR(); };
+    addAndMakeVisible(loadIRButton);
+    clearIRButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff302039));
+    clearIRButton.setColour(juce::TextButton::textColourOffId, pink);
+    clearIRButton.onClick = [this]
+    {
+        processor.bypassCabinetIR();
+        irStatus.setText("CABINET IR BYPASSED", juce::dontSendNotification);
+    };
+    addAndMakeVisible(clearIRButton);
+    irStatus.setText(processor.hasCabinetIR() ? processor.getCabinetIRName() : "NO CUSTOM IR LOADED",
+                     juce::dontSendNotification);
+    irStatus.setColour(juce::Label::textColourId, muted);
+    irStatus.setFont(juce::Font(juce::FontOptions(9.0f, juce::Font::bold)));
+    irStatus.setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(irStatus);
+
     const char* toggleIDs[] = { "gateEnabled", "gatePost", "octaveDown", "driveBoost", "delaySync" };
     const char* toggleNames[] = { "GATE ON", "POST AMP", "SUB OCTAVE", "BOOST", "TEMPO SYNC" };
     for (int i = 0; i < 5; ++i)
@@ -171,6 +281,26 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
         toggleAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
             processor.state, toggleIDs[i], toggles[i]);
     }
+}
+
+void MageAudioProcessorEditor::chooseCabinetIR()
+{
+    irFileChooser = std::make_unique<juce::FileChooser>("Choose a cabinet impulse response",
+        juce::File::getSpecialLocation(juce::File::userHomeDirectory), "*.wav;*.aif;*.aiff");
+    auto safeThis = juce::Component::SafePointer<MageAudioProcessorEditor>(this);
+    irFileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [safeThis](const juce::FileChooser& chooser)
+        {
+            if (safeThis == nullptr)
+                return;
+            const auto file = chooser.getResult();
+            if (file.existsAsFile())
+            {
+                const bool loaded = safeThis->processor.loadCabinetIR(file);
+                safeThis->irStatus.setText(loaded ? file.getFileName() : "UNSUPPORTED IR FILE",
+                                           juce::dontSendNotification);
+            }
+        });
 }
 
 void MageAudioProcessorEditor::paint(juce::Graphics& g)
@@ -189,14 +319,10 @@ void MageAudioProcessorEditor::paint(juce::Graphics& g)
     drawRune(g, 18.0f, 18.0f, 25.0f, cyan.withAlpha(0.75f));
     drawRune(g, w - 43.0f, 18.0f, 25.0f, pink.withAlpha(0.75f));
 
-    auto header = juce::Rectangle<float>(24.0f, 25.0f, w - 48.0f, 132.0f);
     auto amp = juce::Rectangle<float>(24.0f, 178.0f, w - 48.0f, 282.0f);
     auto utility = juce::Rectangle<float>(24.0f, 480.0f, w - 48.0f, 222.0f);
-    auto pedals = juce::Rectangle<float>(24.0f, 722.0f, w - 48.0f, h - 746.0f);
-    drawPlate(g, header, pink, "MAGE  /  THE RUNE SERIES", "SIGNAL PROCESSING  •  AMPLIFIER  •  EFFECTS");
-    drawPlate(g, amp, cyan, "THE AMPLIFIER", "SEVEN-STAGE ANALOG-INSPIRED TONE STACK");
-    drawPlate(g, utility, blue, "GATE  /  CABINET SHAPING", "INPUT CONTROL AND FREQUENCY CONTOUR");
-    drawPlate(g, pedals, pink, "EFFECTS CHAIN", "FOUR DISTINCT PEDAL MODULES  /  MASTER OUTPUT");
+    drawChassis(g, amp, cyan, "THE AMPLIFIER HEAD", "SEVEN-CONTROL TONE STACK  /  RUNE SERIES");
+    drawChassis(g, utility, blue, "GATE  /  CABINET IR BAY", "LOAD YOUR OWN WAV OR AIFF IMPULSE RESPONSE");
 
     // The amp's ornamental centre crest and inset faceplate rails.
     const float cx = w * 0.5f;
@@ -223,8 +349,14 @@ void MageAudioProcessorEditor::paint(juce::Graphics& g)
     const juce::Colour accents[] = { cyan, pink, blue, juce::Colour(0xffffb36b), pink };
     const juce::String headings[] = { "OCTAVE", "OVERDRIVE", "DELAY", "REVERB", "OUTPUT" };
     const juce::String captions[] = { "SUB-HARMONIC", "SATURATION", "ECHO MATRIX", "AMBIENCE", "MASTER LEVEL" };
+    g.setColour(pink);
+    g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
+    g.drawText("EFFECTS CHAIN", 48, 730, 230, 18, juce::Justification::centredLeft);
+    g.setColour(muted);
+    g.setFont(juce::Font(juce::FontOptions(8.0f, juce::Font::bold)));
+    g.drawText("STOMPBOX MODULES", 48, 749, 200, 12, juce::Justification::centredLeft);
     for (int i = 0; i < 5; ++i)
-        drawPlate(g, { innerX + i * (cell + gap), pedalTop + 48.0f, cell, h - pedalTop - 84.0f },
+        drawPedal(g, { innerX + i * (cell + gap), pedalTop + 48.0f, cell, h - pedalTop - 84.0f },
                   accents[i], headings[i], captions[i]);
 
     g.setColour(muted);
@@ -263,8 +395,11 @@ void MageAudioProcessorEditor::resized()
         controls[utilityIndices[i]].setBounds(x + 14, 558, utilityCell - 28, 94);
     }
     const int toggleW = (utilityWidth - 24) / 2;
-    toggles[0].setBounds(utilityX + 8, 665, toggleW, 24);
-    toggles[1].setBounds(utilityX + 16 + toggleW, 665, toggleW, 24);
+    toggles[0].setBounds(utilityX + 8, 665, (utilityWidth / 4) - 12, 24);
+    toggles[1].setBounds(utilityX + 8 + utilityWidth / 4, 665, (utilityWidth / 4) - 12, 24);
+    loadIRButton.setBounds(utilityX + utilityWidth / 2 + 10, 663, 125, 26);
+    clearIRButton.setBounds(utilityX + utilityWidth / 2 + 143, 663, 105, 26);
+    irStatus.setBounds(utilityX + utilityWidth / 2 + 250, 663, utilityWidth / 2 - 258, 26);
 
     // Each effect gets its own metal pedal enclosure and its own control layout.
     const int gap = 12;

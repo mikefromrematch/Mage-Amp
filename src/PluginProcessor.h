@@ -14,7 +14,7 @@ public:
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 4.0; }
+    double getTailLengthSeconds() const override { return 8.0; }
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
     void setCurrentProgram(int) override {}
@@ -26,12 +26,19 @@ public:
 
     juce::AudioProcessorValueTreeState state;
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
+    bool loadCabinetIR(const juce::File& file);
+    void bypassCabinetIR();
+    juce::String getCabinetIRName() const { return cabinetIRName; }
+    bool hasCabinetIR() const { return cabinetIRLoaded; }
 
 private:
     using Filter = juce::dsp::IIR::Filter<float>;
     juce::dsp::ProcessSpec spec {};
     Filter lowCut[2], bass[2], middle[2], treble[2], presence[2], depth[2], highCut[2], driveTone[2];
     juce::dsp::Reverb reverb;
+    juce::dsp::Convolution cabinetIR;
+    juce::String cabinetIRPath, cabinetIRName;
+    std::atomic<bool> cabinetIRLoaded { false };
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> delay { 48000 };
 
     float gateEnvelope[2] { 0.0f, 0.0f };
