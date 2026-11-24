@@ -1,8 +1,9 @@
 name: Build MAGE macOS App
 
 on:
-  pull_request:
-    branches: [main]
+  # Only trusted pushes and manually approved runs may use the personal Mac runner.
+  # Do not add pull_request here: this is a public repository and fork code must
+  # never execute on the self-hosted machine.
   push:
     branches: [main]
   workflow_dispatch:
@@ -12,8 +13,8 @@ permissions:
 
 jobs:
   build-macos:
-    runs-on: macos-15
-    timeout-minutes: 30
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 45
     steps:
       - name: Check out source
         uses: actions/checkout@v4
