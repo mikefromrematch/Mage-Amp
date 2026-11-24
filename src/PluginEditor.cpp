@@ -244,7 +244,9 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
         auto& slider = controls[i];
         slider.setLookAndFeel(&knobLookAndFeel);
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 66, 18);
+        // Show clean integer readouts while retaining full-resolution DSP parameter values.
+        slider.setNumDecimalPlacesToDisplay(0);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 66, 20);
         slider.setColour(juce::Slider::textBoxTextColourId, ivory);
         slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour(0xff101a29));
         slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour(0xff34465c));
@@ -545,8 +547,7 @@ void MageAudioProcessorEditor::resized()
     for (int i = 0; i < 7; ++i)
     {
         labels[i].setBounds(bounds((float)ampX[i], 254, 130, 25));
-        controls[i].setBounds(bounds((float)ampX[i], 280, 130, 132));
-        controls[i].setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+        controls[i].setBounds(bounds((float)ampX[i], 280, 130, 150));
     }
 
     // Gate panel on the left.
@@ -560,11 +561,11 @@ void MageAudioProcessorEditor::resized()
     // Cabinet bay on the right: IR loader and high/low cut.
     loadIRButton.setBounds(bounds(1470, 386, 145, 37));
     clearIRButton.setBounds(bounds(1470, 427, 145, 28));
-    irStatus.setBounds(bounds(1464, 457, 158, 22));
-    labels[21].setBounds(bounds(1468, 447, 78, 18));
-    controls[21].setBounds(bounds(1537, 435, 48, 47));
-    labels[22].setBounds(bounds(1467, 493, 78, 18));
-    controls[22].setBounds(bounds(1537, 480, 48, 47));
+    irStatus.setBounds(bounds(1464, 456, 158, 18));
+    labels[21].setBounds(bounds(1467, 478, 68, 18));
+    controls[21].setBounds(bounds(1538, 468, 48, 58));
+    labels[22].setBounds(bounds(1467, 518, 68, 18));
+    controls[22].setBounds(bounds(1538, 508, 48, 58));
 
     // Pedal controls: match the reference's individual hardware enclosures.
     const int octaveX[] = { 96, 178, 260 };
@@ -609,7 +610,6 @@ void MageAudioProcessorEditor::resized()
         pedalSwitches[i].setButtonText(pedalSwitches[i].getToggleState() ? "ON" : "OFF");
     }
 
-    labels[20].setBounds(bounds(1445, 760, 150, 25));
-    controls[20].setBounds(bounds(1452, 635, 128, 128));
-    controls[20].setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+    labels[20].setBounds(bounds(1445, 765, 150, 25));
+    controls[20].setBounds(bounds(1452, 625, 128, 148));
 }
