@@ -209,11 +209,12 @@ void MageKnobLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int 
 MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
     : AudioProcessorEditor(p), processor(p)
 {
-    setSize(1440, 1000);
+    setSize(1672, 941);
     setResizable(true, true);
-    setResizeLimits(980, 850, 1900, 1400);
+    setResizeLimits(1200, 675, 2400, 1500);
 
-    title.setText("M A G E", juce::dontSendNotification);
+    title.setText("", juce::dontSendNotification);
+    title.setVisible(false);
     title.setFont(juce::Font(juce::FontOptions(42.0f, juce::Font::bold)));
     title.setColour(juce::Label::textColourId, pink);
     title.setJustificationType(juce::Justification::centredLeft);
@@ -285,20 +286,19 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
     for (int i = 0; i < 4; ++i)
     {
         pedalSwitches[i].setClickingTogglesState(true);
-        pedalSwitches[i].setButtonText("OFF");
-        pedalSwitches[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1b2635));
-        pedalSwitches[i].setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff174b55));
-        pedalSwitches[i].setColour(juce::TextButton::textColourOffId, muted);
-        pedalSwitches[i].setColour(juce::TextButton::textColourOnId, cyan);
+        pedalSwitches[i].setButtonText("");
+        pedalSwitches[i].setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+        pedalSwitches[i].setColour(juce::TextButton::buttonOnColourId, juce::Colours::transparentBlack);
+        pedalSwitches[i].setColour(juce::TextButton::textColourOffId, juce::Colours::transparentBlack);
+        pedalSwitches[i].setColour(juce::TextButton::textColourOnId, juce::Colours::transparentBlack);
         pedalSwitches[i].onClick = [this, i, pedalNames]
         {
-            pedalSwitches[i].setButtonText(pedalSwitches[i].getToggleState() ? "ON" : "OFF");
             repaint();
         };
         addAndMakeVisible(pedalSwitches[i]);
         pedalSwitchAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
             processor.state, pedalIDs[i], pedalSwitches[i]);
-        pedalSwitches[i].setButtonText(pedalSwitches[i].getToggleState() ? "ON" : "OFF");
+
     }
 
     const char* toggleIDs[] = { "gateEnabled", "gatePost", "octaveDown", "driveBoost", "delaySync" };
@@ -479,6 +479,28 @@ void MageAudioProcessorEditor::paint(juce::Graphics& g)
         g.fillRoundedRectangle(x, 697.0f, 42.0f, 13.0f, 5.0f);
         g.setColour(juce::Colour(0xff9ba9c7)); g.drawRoundedRectangle(x, 697.0f, 42.0f, 13.0f, 5.0f, 1.0f);
         g.setColour(cyan.withAlpha(0.85f));
+    }
+
+    // Jewel status lamps and chrome footswitches are painted separately from the hit targets.
+    const char* enabledIDs[] = { "octaveEnabled", "driveEnabled", "delayEnabled", "reverbEnabled" };
+    const float ledCentres[] = { 218.0f, 541.0f, 874.0f, 1225.0f };
+    const juce::Colour ledColours[] = { juce::Colour(0xffbd69ff), pink, cyan, pink };
+    for (int i = 0; i < 4; ++i)
+    {
+        const bool enabled = processor.state.getRawParameterValue(enabledIDs[i])->load() > 0.5f;
+        const float lx = ledCentres[i], ly = 781.0f;
+        if (enabled)
+        {
+            g.setColour(ledColours[i].withAlpha(0.28f)); g.fillEllipse(lx - 13.0f, ly - 13.0f, 26.0f, 26.0f);
+        }
+        g.setColour(enabled ? ledColours[i] : juce::Colour(0xff394052));
+        g.fillEllipse(lx - 6.0f, ly - 6.0f, 12.0f, 12.0f);
+        g.setColour(enabled ? ledColours[i] : juce::Colour(0xff69758a));
+        g.drawEllipse(lx - 8.0f, ly - 8.0f, 16.0f, 16.0f, 1.5f);
+        g.setColour(juce::Colour(0xff02050b)); g.fillEllipse(lx - 20.0f, 802.0f, 40.0f, 40.0f);
+        g.setColour(juce::Colour(0xff9ba9c4)); g.drawEllipse(lx - 18.0f, 804.0f, 36.0f, 36.0f, 2.0f);
+        g.setColour(juce::Colour(0xff202b3e)); g.fillEllipse(lx - 13.0f, 809.0f, 26.0f, 26.0f);
+        g.setColour(ledColours[i].withAlpha(0.65f)); g.drawEllipse(lx - 13.0f, 809.0f, 26.0f, 26.0f, 1.0f);
     }
 
     // Dedicated output module.
