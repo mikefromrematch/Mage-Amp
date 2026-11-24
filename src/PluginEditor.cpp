@@ -2,29 +2,31 @@
 
 namespace
 {
-    const juce::Colour background { 0xff080b13 };
-    const juce::Colour panel { 0xff101725 };
-    const juce::Colour panelEdge { 0xff26364a };
-    const juce::Colour cyan { 0xff55d8ff };
-    const juce::Colour pink { 0xffff70d5 };
-    const juce::Colour muted { 0xff8293a8 };
+    const juce::Colour background { 0xff070a12 };
+    const juce::Colour panel { 0xff111927 };
+    const juce::Colour panelInner { 0xff0b121e };
+    const juce::Colour edge { 0xff304158 };
+    const juce::Colour cyan { 0xff58dfff };
+    const juce::Colour pink { 0xffff72d6 };
+    const juce::Colour text { 0xffeaf2fc };
+    const juce::Colour muted { 0xff8294aa };
 }
 
 MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
     : AudioProcessorEditor(p), processor(p)
 {
-    setSize(1120, 1020);
+    setSize(1180, 1060);
     setResizable(true, true);
-    setResizeLimits(960, 900, 1600, 1300);
+    setResizeLimits(980, 900, 1700, 1400);
 
     title.setText("M A G E", juce::dontSendNotification);
-    title.setFont(juce::Font(juce::FontOptions(34.0f, juce::Font::bold)));
+    title.setFont(juce::Font(juce::FontOptions(38.0f, juce::Font::bold)));
     title.setColour(juce::Label::textColourId, pink);
     title.setJustificationType(juce::Justification::centredLeft);
     addAndMakeVisible(title);
 
-    subtitle.setText("HIGH GAIN AMPLIFIER  /  TONE & PEDAL ENGINE", juce::dontSendNotification);
-    subtitle.setFont(juce::Font(juce::FontOptions(11.0f, juce::Font::bold)));
+    subtitle.setText("HIGH GAIN AMPLIFIER  /  MODULAR TONE SYSTEM", juce::dontSendNotification);
+    subtitle.setFont(juce::Font(juce::FontOptions(10.5f, juce::Font::bold)));
     subtitle.setColour(juce::Label::textColourId, muted);
     subtitle.setJustificationType(juce::Justification::centredLeft);
     addAndMakeVisible(subtitle);
@@ -33,31 +35,32 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
         "gain", "bass", "mid", "treble", "presence", "depth", "master",
         "gate", "gateDecay", "octaveMix", "drive", "driveTone", "driveLevel",
         "delayTime", "delayFeedback", "delayMix", "reverbDecay", "reverbSize",
-        "reverbTone", "reverbMix", "output"
+        "reverbTone", "reverbMix", "output", "lowCut", "highCut"
     };
     const char* names[] = {
         "GAIN", "BASS", "MIDDLE", "TREBLE", "PRESENCE", "DEPTH", "MASTER",
-        "GATE THRESHOLD", "GATE DECAY", "OCTAVE MIX", "DRIVE GAIN", "DRIVE TONE",
-        "DRIVE LEVEL", "DELAY TIME", "FEEDBACK", "DELAY MIX", "REVERB DECAY",
-        "REVERB SIZE", "REVERB TONE", "REVERB MIX", "OUTPUT"
+        "THRESHOLD", "RELEASE", "OCTAVE MIX", "DRIVE", "TONE", "LEVEL",
+        "TIME", "FEEDBACK", "MIX", "DECAY", "SIZE", "TONE", "MIX", "OUTPUT",
+        "LOW CUT", "HIGH CUT"
     };
 
-    for (int i = 0; i < 21; ++i)
+    for (int i = 0; i < 23; ++i)
     {
         auto& slider = controls[i];
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 72, 20);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 76, 19);
         slider.setColour(juce::Slider::rotarySliderFillColourId, cyan);
-        slider.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour(0xff26384b));
+        slider.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour(0xff26364b));
         slider.setColour(juce::Slider::thumbColourId, pink);
-        slider.setColour(juce::Slider::textBoxTextColourId, juce::Colour(0xffe7edf7));
-        slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour(0xff0b111c));
-        slider.setColour(juce::Slider::textBoxOutlineColourId, panelEdge);
+        slider.setColour(juce::Slider::textBoxTextColourId, text);
+        slider.setColour(juce::Slider::textBoxBackgroundColourId, panelInner);
+        slider.setColour(juce::Slider::textBoxOutlineColourId, edge);
+        slider.setColour(juce::Slider::textBoxHighlightColourId, pink);
         addAndMakeVisible(slider);
 
         labels[i].setText(names[i], juce::dontSendNotification);
-        labels[i].setFont(juce::Font(juce::FontOptions(10.5f, juce::Font::bold)));
-        labels[i].setColour(juce::Label::textColourId, juce::Colour(0xffdce7f4));
+        labels[i].setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
+        labels[i].setColour(juce::Label::textColourId, text);
         labels[i].setJustificationType(juce::Justification::centred);
         addAndMakeVisible(labels[i]);
 
@@ -65,14 +68,15 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
             processor.state, ids[i], slider);
     }
 
-    const char* toggleIDs[] = { "gateEnabled", "gatePost", "octaveDown", "driveBoost" };
-    const char* toggleNames[] = { "GATE ON", "POST AMP", "OCTAVE DOWN", "DRIVE BOOST" };
-    for (int i = 0; i < 4; ++i)
+    const char* toggleIDs[] = { "gateEnabled", "gatePost", "octaveDown", "driveBoost", "delaySync" };
+    const char* toggleNames[] = { "GATE ACTIVE", "POST AMP", "SUB OCTAVE", "BOOST", "TEMPO SYNC" };
+    for (int i = 0; i < 5; ++i)
     {
         toggles[i].setButtonText(toggleNames[i]);
-        toggles[i].setColour(juce::ToggleButton::textColourId, juce::Colour(0xffdce7f4));
+        toggles[i].setColour(juce::ToggleButton::textColourId, text);
         toggles[i].setColour(juce::ToggleButton::tickColourId, cyan);
         toggles[i].setColour(juce::ToggleButton::tickDisabledColourId, muted);
+        toggles[i].setColour(juce::ToggleButton::textColourId, text);
         addAndMakeVisible(toggles[i]);
         toggleAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
             processor.state, toggleIDs[i], toggles[i]);
@@ -82,73 +86,91 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
 void MageAudioProcessorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(background);
-    juce::ColourGradient glow(cyan.withAlpha(0.10f), 0.0f, 0.0f,
-                              pink.withAlpha(0.045f), (float) getWidth(), (float) getHeight(), false);
-    g.setGradientFill(glow);
+
+    juce::ColourGradient atmosphere(cyan.withAlpha(0.085f), 0.0f, 0.0f,
+                                    pink.withAlpha(0.045f), (float)getWidth(), (float)getHeight(), false);
+    g.setGradientFill(atmosphere);
     g.fillAll();
 
-    auto header = juce::Rectangle<float>(24.0f, 20.0f, (float) getWidth() - 48.0f, 104.0f);
-    auto ampPanel = juce::Rectangle<float>(24.0f, 148.0f, (float) getWidth() - 48.0f, 284.0f);
-    auto pedalPanel = juce::Rectangle<float>(24.0f, 456.0f, (float) getWidth() - 48.0f, (float) getHeight() - 480.0f);
+    const float w = (float)getWidth();
+    auto header = juce::Rectangle<float>(22.0f, 18.0f, w - 44.0f, 104.0f);
+    auto amp = juce::Rectangle<float>(22.0f, 140.0f, w - 44.0f, 248.0f);
+    auto utility = juce::Rectangle<float>(22.0f, 406.0f, w - 44.0f, 188.0f);
+    auto pedals = juce::Rectangle<float>(22.0f, 612.0f, w - 44.0f, (float)getHeight() - 634.0f);
 
-    g.setColour(panel.withAlpha(0.97f));
-    g.fillRoundedRectangle(header, 14.0f);
-    g.fillRoundedRectangle(ampPanel, 16.0f);
-    g.fillRoundedRectangle(pedalPanel, 16.0f);
+    const auto drawPanel = [&g](juce::Rectangle<float> r, float radius)
+    {
+        g.setColour(panel.withAlpha(0.98f));
+        g.fillRoundedRectangle(r, radius);
+        g.setColour(edge);
+        g.drawRoundedRectangle(r, radius, 1.2f);
+        g.setColour(cyan.withAlpha(0.72f));
+        g.fillRoundedRectangle(r.getX() + 15.0f, r.getY() + 17.0f, 3.0f, 23.0f, 1.5f);
+    };
+    drawPanel(header, 15.0f);
+    drawPanel(amp, 17.0f);
+    drawPanel(utility, 17.0f);
+    drawPanel(pedals, 17.0f);
 
-    g.setColour(panelEdge);
-    g.drawRoundedRectangle(header, 14.0f, 1.0f);
-    g.drawRoundedRectangle(ampPanel, 16.0f, 1.0f);
-    g.drawRoundedRectangle(pedalPanel, 16.0f, 1.0f);
+    g.setColour(juce::Colour(0xff172638));
+    g.drawRoundedRectangle(header.reduced(7.0f), 11.0f, 0.7f);
+    g.setColour(pink.withAlpha(0.55f));
+    g.drawLine(amp.getX() + 34.0f, amp.getBottom() - 1.0f,
+               amp.getRight() - 34.0f, amp.getBottom() - 1.0f, 1.0f);
 
-    g.setColour(cyan);
-    g.fillRoundedRectangle(ampPanel.getX() + 18.0f, ampPanel.getY() + 18.0f, 3.0f, 20.0f, 1.5f);
-    g.fillRoundedRectangle(pedalPanel.getX() + 18.0f, pedalPanel.getY() + 18.0f, 3.0f, 20.0f, 1.5f);
-
-    g.setColour(juce::Colour(0xffe8f1fc));
-    g.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
-    g.drawText("AMPLIFIER  /  ACTIVE TONE STACK", 54, 164, 360, 24, juce::Justification::centredLeft);
+    g.setColour(text);
+    g.setFont(juce::Font(juce::FontOptions(12.5f, juce::Font::bold)));
+    g.drawText("AMPLIFIER  /  TONE STACK", 48, 151, 330, 22, juce::Justification::centredLeft);
     g.setColour(pink);
-    g.drawText("PEDALBOARD  /  GATE • OCTAVE • DRIVE • DELAY • REVERB", 54, 472, 600, 24,
-               juce::Justification::centredLeft);
+    g.drawText("GATE  &  CABINET SHAPING", 48, 417, 360, 22, juce::Justification::centredLeft);
+    g.drawText("EFFECTS  /  PEDALBOARD", 48, 623, 360, 22, juce::Justification::centredLeft);
 
     g.setColour(muted);
-    g.setFont(juce::Font(juce::FontOptions(10.0f)));
-    g.drawText("MAGE AUDIO  •  DSP PROTOTYPE 0.2", 30, getHeight() - 22, getWidth() - 60, 14,
-               juce::Justification::centred);
+    g.setFont(juce::Font(juce::FontOptions(9.5f)));
+    g.drawText("MAGE AUDIO     •     HIGH VOLTAGE TONE LAB", 30, getHeight() - 20,
+               getWidth() - 60, 12, juce::Justification::centred);
 }
 
 void MageAudioProcessorEditor::resized()
 {
     const int width = getWidth();
-    title.setBounds(48, 32, 260, 46);
-    subtitle.setBounds(50, 78, 500, 22);
+    title.setBounds(48, 29, 270, 48);
+    subtitle.setBounds(50, 77, 420, 20);
 
-    const int ampLeft = 42;
+    const int left = 42;
     const int ampCell = (width - 84) / 7;
     for (int i = 0; i < 7; ++i)
     {
-        const int x = ampLeft + i * ampCell;
-        labels[i].setBounds(x, 220, ampCell, 24);
-        controls[i].setBounds(x + 7, 246, ampCell - 14, 158);
+        const int x = left + i * ampCell;
+        labels[i].setBounds(x, 190, ampCell, 22);
+        controls[i].setBounds(x + 7, 212, ampCell - 14, 158);
     }
 
-    // Two rows of pedal controls. Group ordering follows the signal chain.
-    const int left = 42;
-    const int cell = (width - 84) / 7;
-    const int rowY[] = { 558, 748 };
-    for (int i = 0; i < 14; ++i)
-    {
-        const int row = i / 7;
-        const int col = i % 7;
-        const int x = left + col * cell;
-        const int index = i + 7;
-        labels[index].setBounds(x, rowY[row], cell, 22);
-        controls[index].setBounds(x + 8, rowY[row] + 24, cell - 16, 132);
-    }
-
-    const int toggleY = getHeight() - 78;
-    const int toggleWidth = (width - 100) / 4;
+    // Noise gate and cabinet filters are grouped as the utility rack.
+    const int utilityCell = (width - 100) / 4;
     for (int i = 0; i < 4; ++i)
-        toggles[i].setBounds(50 + i * toggleWidth, toggleY, toggleWidth, 28);
+    {
+        const int x = 50 + i * utilityCell;
+        const int controlIndex[] = { 7, 8, 21, 22 };
+        labels[controlIndex[i]].setBounds(x, 450, utilityCell, 18);
+        controls[controlIndex[i]].setBounds(x + 12, 468, utilityCell - 24, 104);
+    }
+
+    // Five switches form a compact control strip above the pedals.
+    const int toggleWidth = (width - 112) / 5;
+    for (int i = 0; i < 5; ++i)
+        toggles[i].setBounds(52 + i * toggleWidth, 574, toggleWidth, 24);
+
+    // Pedalboard: two rows of six controls, in signal-chain order.
+    const int pedalCell = (width - 104) / 6;
+    for (int i = 0; i < 12; ++i)
+    {
+        const int row = i / 6;
+        const int col = i % 6;
+        const int index = i + 9;
+        const int x = 52 + col * pedalCell;
+        const int y = row == 0 ? 666 : 824;
+        labels[index].setBounds(x, y, pedalCell, 19);
+        controls[index].setBounds(x + 7, y + 19, pedalCell - 14, 126);
+    }
 }
