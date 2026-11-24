@@ -26,6 +26,50 @@ namespace
                                                 juce::PathStrokeType::rounded));
     }
 
+    void drawMageCrest(juce::Graphics& g, float x, float y, float size)
+    {
+        const float c = size * 0.5f;
+        juce::Path frame;
+        frame.startNewSubPath(x + c, y);
+        frame.lineTo(x + size * 0.91f, y + size * 0.20f);
+        frame.lineTo(x + size * 0.91f, y + size * 0.72f);
+        frame.lineTo(x + c, y + size);
+        frame.lineTo(x + size * 0.09f, y + size * 0.72f);
+        frame.lineTo(x + size * 0.09f, y + size * 0.20f);
+        frame.closeSubPath();
+
+        juce::ColourGradient aura(cyan.withAlpha(0.28f), x, y,
+                                  pink.withAlpha(0.10f), x + size, y + size, true);
+        g.setGradientFill(aura);
+        g.fillEllipse(x - size * 0.10f, y - size * 0.10f, size * 1.20f, size * 1.20f);
+        g.setColour(cyan.withAlpha(0.9f));
+        g.strokePath(frame, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved,
+                                                 juce::PathStrokeType::rounded));
+
+        // Original MAGE monogram: a forged, angular M nested inside a rune crest.
+        juce::Path monogram;
+        monogram.startNewSubPath(x + size * 0.24f, y + size * 0.73f);
+        monogram.lineTo(x + size * 0.24f, y + size * 0.29f);
+        monogram.lineTo(x + size * 0.50f, y + size * 0.57f);
+        monogram.lineTo(x + size * 0.76f, y + size * 0.29f);
+        monogram.lineTo(x + size * 0.76f, y + size * 0.73f);
+        monogram.startNewSubPath(x + size * 0.35f, y + size * 0.78f);
+        monogram.lineTo(x + size * 0.65f, y + size * 0.78f);
+        juce::ColourGradient ink(cyan, x, y, pink, x + size, y + size, false);
+        g.setGradientFill(ink);
+        g.strokePath(monogram, juce::PathStrokeType(size * 0.055f,
+                                                    juce::PathStrokeType::curved,
+                                                    juce::PathStrokeType::rounded));
+
+        g.setColour(ivory.withAlpha(0.72f));
+        g.drawLine(x + size * 0.50f, y - size * 0.13f,
+                   x + size * 0.50f, y - size * 0.02f, 1.2f);
+        g.drawLine(x + size * 0.50f, y + size * 1.02f,
+                   x + size * 0.50f, y + size * 1.13f, 1.2f);
+        g.setColour(pink.withAlpha(0.8f));
+        g.fillEllipse(x + size * 0.45f, y + size * 0.88f, size * 0.10f, size * 0.10f);
+    }
+
     void drawPlate(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour accent,
                    const juce::String& heading, const juce::String& subheading = {})
     {
@@ -365,14 +409,18 @@ void MageAudioProcessorEditor::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xff24304a));
     g.drawLine(0.0f, 91.0f, 1672.0f, 91.0f, 1.0f);
 
-    // Header: sigil, preset strip, transport icons, and glowing meters.
-    juce::ColourGradient logoGlow(cyan.withAlpha(0.24f), 28.0f, 8.0f,
-                                  blue.withAlpha(0.02f), 135.0f, 88.0f, true);
-    g.setGradientFill(logoGlow);
-    g.fillEllipse(28.0f, 5.0f, 90.0f, 82.0f);
-    drawRune(g, 51.0f, 18.0f, 44.0f, cyan);
-    g.setColour(blue.withAlpha(0.7f));
-    g.drawEllipse(38.0f, 12.0f, 72.0f, 72.0f, 1.0f);
+    // Header: custom MAGE crest artwork, preset strip, transport icons, and meters.
+    drawMageCrest(g, 37.0f, 12.0f, 58.0f);
+    g.setColour(ivory);
+    g.setFont(juce::Font(juce::FontOptions(22.0f, juce::Font::bold)));
+    g.drawText("MAGE", 105.0f, 25.0f, 76.0f, 25.0f, juce::Justification::centredLeft);
+    g.setColour(cyan.withAlpha(0.78f));
+    g.setFont(juce::Font(juce::FontOptions(7.5f, juce::Font::bold)));
+    g.drawText("ARCANE TONE SYSTEM", 106.0f, 52.0f, 92.0f, 13.0f, juce::Justification::centredLeft);
+    g.setColour(blue.withAlpha(0.55f));
+    g.drawLine(24.0f, 8.0f, 24.0f, 82.0f, 1.0f);
+    g.setColour(pink.withAlpha(0.7f));
+    g.drawLine(193.0f, 20.0f, 193.0f, 75.0f, 1.0f);
     g.setColour(juce::Colour(0xff263653));
     g.drawLine(171.0f, 20.0f, 171.0f, 75.0f, 1.0f);
     g.setColour(juce::Colour(0xff0c1425));
@@ -606,8 +654,10 @@ void MageAudioProcessorEditor::resized()
     const int switchX[] = { 190, 512, 845, 1194 };
     for (int i = 0; i < 4; ++i)
     {
-        pedalSwitches[i].setBounds(bounds((float)switchX[i], 824, 58, 35));
-        pedalSwitches[i].setButtonText(pedalSwitches[i].getToggleState() ? "ON" : "OFF");
+        // Hit target is centered on the painted 40 px chrome footswitch (center y=822).
+        // Keep the clickable area tight to the metal cap instead of the old offset rectangle.
+        pedalSwitches[i].setBounds(bounds((float)switchX[i] - 22.0f, 800.0f, 44.0f, 44.0f));
+        pedalSwitches[i].setButtonText("");
     }
 
     labels[20].setBounds(bounds(1445, 765, 150, 25));
