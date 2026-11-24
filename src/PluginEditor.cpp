@@ -62,6 +62,49 @@ namespace
         }
     }
 
+    void drawChassis(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour accent,
+                     const juce::String& heading, const juce::String& detail)
+    {
+        juce::Path shell;
+        shell.startNewSubPath(r.getX() + 18.0f, r.getY());
+        shell.lineTo(r.getRight() - 18.0f, r.getY());
+        shell.lineTo(r.getRight(), r.getY() + 18.0f);
+        shell.lineTo(r.getRight(), r.getBottom() - 18.0f);
+        shell.lineTo(r.getRight() - 18.0f, r.getBottom());
+        shell.lineTo(r.getX() + 18.0f, r.getBottom());
+        shell.lineTo(r.getX(), r.getBottom() - 18.0f);
+        shell.lineTo(r.getX(), r.getY() + 18.0f);
+        shell.closeSubPath();
+        g.setColour(juce::Colour(0xaa000000));
+        g.fillPath(shell, juce::AffineTransform::translation(0.0f, 6.0f));
+        juce::ColourGradient finish(juce::Colour(0xff536278), r.getX(), r.getY(),
+                                    juce::Colour(0xff101722), r.getRight(), r.getBottom(), false);
+        g.setGradientFill(finish);
+        g.fillPath(shell);
+        g.setColour(juce::Colour(0xff8495a9));
+        g.strokePath(shell, juce::PathStrokeType(1.5f));
+        auto face = r.reduced(7.0f);
+        g.setColour(juce::Colour(0xff080e18));
+        g.fillRoundedRectangle(face, 11.0f);
+        g.setColour(accent.withAlpha(0.48f));
+        g.drawRoundedRectangle(face, 11.0f, 1.2f);
+        g.setColour(accent);
+        g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
+        g.drawText(heading, face.getX() + 20.0f, face.getY() + 9.0f,
+                   face.getWidth() - 40.0f, 18.0f, juce::Justification::centredLeft);
+        g.setColour(muted);
+        g.setFont(juce::Font(juce::FontOptions(8.0f, juce::Font::bold)));
+        g.drawText(detail, face.getX() + 20.0f, face.getY() + 28.0f,
+                   face.getWidth() - 40.0f, 13.0f, juce::Justification::centredLeft);
+        for (int i = 0; i < 4; ++i)
+        {
+            const float bx = (i % 2 == 0) ? r.getX() + 9.0f : r.getRight() - 13.0f;
+            const float by = (i < 2) ? r.getY() + 9.0f : r.getBottom() - 13.0f;
+            g.setColour(juce::Colour(0xff9aa9b9));
+            g.fillEllipse(bx, by, 4.0f, 4.0f);
+        }
+    }
+
     void drawPedal(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour accent,
                    const juce::String& name, const juce::String& descriptor)
     {
@@ -276,14 +319,10 @@ void MageAudioProcessorEditor::paint(juce::Graphics& g)
     drawRune(g, 18.0f, 18.0f, 25.0f, cyan.withAlpha(0.75f));
     drawRune(g, w - 43.0f, 18.0f, 25.0f, pink.withAlpha(0.75f));
 
-    auto header = juce::Rectangle<float>(24.0f, 25.0f, w - 48.0f, 132.0f);
     auto amp = juce::Rectangle<float>(24.0f, 178.0f, w - 48.0f, 282.0f);
     auto utility = juce::Rectangle<float>(24.0f, 480.0f, w - 48.0f, 222.0f);
-    auto pedals = juce::Rectangle<float>(24.0f, 722.0f, w - 48.0f, h - 746.0f);
-    drawPlate(g, header, pink, "MAGE  /  THE RUNE SERIES", "SIGNAL PROCESSING  •  AMPLIFIER  •  EFFECTS");
-    drawPlate(g, amp, cyan, "THE AMPLIFIER", "SEVEN-STAGE ANALOG-INSPIRED TONE STACK");
-    drawPlate(g, utility, blue, "GATE  /  CABINET SHAPING", "INPUT CONTROL AND FREQUENCY CONTOUR");
-    drawPlate(g, pedals, pink, "EFFECTS CHAIN", "FOUR DISTINCT PEDAL MODULES  /  MASTER OUTPUT");
+    drawChassis(g, amp, cyan, "THE AMPLIFIER HEAD", "SEVEN-CONTROL TONE STACK  /  RUNE SERIES");
+    drawChassis(g, utility, blue, "GATE  /  CABINET IR BAY", "LOAD YOUR OWN WAV OR AIFF IMPULSE RESPONSE");
 
     // The amp's ornamental centre crest and inset faceplate rails.
     const float cx = w * 0.5f;
@@ -310,6 +349,12 @@ void MageAudioProcessorEditor::paint(juce::Graphics& g)
     const juce::Colour accents[] = { cyan, pink, blue, juce::Colour(0xffffb36b), pink };
     const juce::String headings[] = { "OCTAVE", "OVERDRIVE", "DELAY", "REVERB", "OUTPUT" };
     const juce::String captions[] = { "SUB-HARMONIC", "SATURATION", "ECHO MATRIX", "AMBIENCE", "MASTER LEVEL" };
+    g.setColour(pink);
+    g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
+    g.drawText("EFFECTS CHAIN", 48, 730, 230, 18, juce::Justification::centredLeft);
+    g.setColour(muted);
+    g.setFont(juce::Font(juce::FontOptions(8.0f, juce::Font::bold)));
+    g.drawText("STOMPBOX MODULES", 48, 749, 200, 12, juce::Justification::centredLeft);
     for (int i = 0; i < 5; ++i)
         drawPedal(g, { innerX + i * (cell + gap), pedalTop + 48.0f, cell, h - pedalTop - 84.0f },
                   accents[i], headings[i], captions[i]);
