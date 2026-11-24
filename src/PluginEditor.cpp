@@ -12,6 +12,51 @@ namespace
     const juce::Colour muted { 0xff8294aa };
 }
 
+void MageKnobLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
+                                                   float sliderPos, float startAngle, float endAngle,
+                                                   juce::Slider&)
+{
+    const auto bounds = juce::Rectangle<float>((float)x, (float)y, (float)width, (float)height).reduced(9.0f);
+    const float diameter = juce::jmin(bounds.getWidth(), bounds.getHeight() - 17.0f);
+    const float radius = diameter * 0.5f;
+    const auto centre = bounds.getCentre().withY(bounds.getY() + radius + 2.0f);
+    const float angle = startAngle + sliderPos * (endAngle - startAngle);
+
+    g.setColour(juce::Colour(0x44000000));
+    g.fillEllipse(centre.x - radius + 1.0f, centre.y - radius + 3.0f, diameter, diameter);
+    juce::ColourGradient face(juce::Colour(0xff26384d), centre.x, centre.y - radius,
+                              juce::Colour(0xff090f19), centre.x, centre.y + radius, false);
+    g.setGradientFill(face);
+    g.fillEllipse(centre.x - radius, centre.y - radius, diameter, diameter);
+
+    g.setColour(juce::Colour(0xff425a70));
+    g.drawEllipse(centre.x - radius, centre.y - radius, diameter, diameter, 1.4f);
+    g.setColour(juce::Colour(0xff080d16));
+    g.drawEllipse(centre.x - radius + 5.0f, centre.y - radius + 5.0f,
+                  diameter - 10.0f, diameter - 10.0f, 1.0f);
+
+    juce::Path track;
+    track.addCentredArc(centre.x, centre.y, radius - 3.0f, radius - 3.0f, 0.0f,
+                        startAngle, endAngle, true);
+    g.setColour(juce::Colour(0xff33465c));
+    g.strokePath(track, juce::PathStrokeType(3.0f, juce::PathStrokeType::curved,
+                                             juce::PathStrokeType::rounded));
+
+    juce::Path valueArc;
+    valueArc.addCentredArc(centre.x, centre.y, radius - 3.0f, radius - 3.0f, 0.0f,
+                           startAngle, angle, true);
+    g.setColour(juce::Colour(0xff58dfff));
+    g.strokePath(valueArc, juce::PathStrokeType(3.2f, juce::PathStrokeType::curved,
+                                                juce::PathStrokeType::rounded));
+
+    juce::Path pointer;
+    pointer.addRoundedRectangle(-1.7f, -radius + 9.0f, 3.4f, radius * 0.43f, 1.6f);
+    g.setColour(juce::Colour(0xffff72d6));
+    g.fillPath(pointer, juce::AffineTransform::rotation(angle).translated(centre.x, centre.y));
+    g.setColour(juce::Colour(0xff101b2a));
+    g.fillEllipse(centre.x - 4.0f, centre.y - 4.0f, 8.0f, 8.0f);
+}
+
 MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
     : AudioProcessorEditor(p), processor(p)
 {
@@ -47,6 +92,7 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
     for (int i = 0; i < 23; ++i)
     {
         auto& slider = controls[i];
+        slider.setLookAndFeel(&knobLookAndFeel);
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
         slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 76, 19);
         slider.setColour(juce::Slider::rotarySliderFillColourId, cyan);
