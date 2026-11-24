@@ -97,12 +97,7 @@ void MageAudioProcessor::prepareToPlay(double sampleRate, int blockSize)
     {
         const juce::File irFile(cabinetIRPath);
         if (irFile.existsAsFile())
-        {
-            cabinetIR.loadImpulseResponse(irFile, juce::dsp::Convolution::Stereo::no,
-                                          juce::dsp::Convolution::Trim::yes, 0,
-                                          juce::dsp::Convolution::Normalise::yes);
-            cabinetIRLoaded.store(true);
-        }
+            loadCabinetIR(irFile);
     }
 }
 
@@ -300,8 +295,16 @@ bool MageAudioProcessor::loadCabinetIR(const juce::File& file)
     if (extension != ".wav" && extension != ".aif" && extension != ".aiff")
         return false;
 
-    cabinetIR.loadImpulseResponse(file, juce::dsp::Convolution::Stereo::no,
-                                  juce::dsp::Convolution::Trim::yes, 0,
+    juce::AudioFormatManager formats;
+    formats.registerBasicFormats();
+    std::unique_ptr<juce::AudioFormatReader> reader(formats.createReaderFor(file));
+    if (reader == nullptr || reader->numChannels < 1 || reader->numChannels > 2)
+        return false;
+
+    const auto stereoMode = reader->numChannels > 1
+        ? juce::dsp::Convolution::Stereo::yes
+        : juce::dsp::Convolution::Stereo::no;
+    cabinetIR.loadImpulseResponse(file, stereoMode, juce::dsp::Convolution::Trim::yes, 0,
                                   juce::dsp::Convolution::Normalise::yes);
     cabinetIRPath = file.getFullPathName();
     cabinetIRName = file.getFileName();
