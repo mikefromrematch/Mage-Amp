@@ -651,7 +651,7 @@ void MageAudioProcessorEditor::resized()
     }
 
     // Four real stomp switches, visually aligned beneath each pedal's controls.
-    const int switchX[] = { 190, 512, 845, 1194 };
+    const int switchX[] = { 219, 541, 874, 1223 };
     for (int i = 0; i < 4; ++i)
     {
         // Hit target is centered on the painted 40 px chrome footswitch (center y=822).
