@@ -483,7 +483,7 @@ void MageAudioProcessorEditor::paint(juce::Graphics& g)
 
     // Jewel status lamps and chrome footswitches are painted separately from the hit targets.
     const char* enabledIDs[] = { "octaveEnabled", "driveEnabled", "delayEnabled", "reverbEnabled" };
-    const float ledCentres[] = { 218.0f, 541.0f, 874.0f, 1225.0f };
+    const float ledCentres[] = { 219.0f, 541.0f, 874.0f, 1223.0f };
     const juce::Colour ledColours[] = { juce::Colour(0xffbd69ff), pink, cyan, pink };
     for (int i = 0; i < 4; ++i)
     {
@@ -602,7 +602,7 @@ void MageAudioProcessorEditor::resized()
     }
 
     // Four real stomp switches, visually aligned beneath each pedal's controls.
-    const int switchX[] = { 190, 520, 851, 1215 };
+    const int switchX[] = { 190, 512, 845, 1194 };
     for (int i = 0; i < 4; ++i)
     {
         pedalSwitches[i].setBounds(bounds((float)switchX[i], 824, 58, 35));
