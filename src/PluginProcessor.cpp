@@ -48,6 +48,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout MageAudioProcessor::createLa
 
     // Octave and drive pedals
     add("octaveMix", 0.0f, 1.0f, 0.0f);
+    add("octaveTone", 0.0f, 10.0f, 5.0f);
+    add("octaveLevel", 0.0f, 10.0f, 5.0f);
     toggle("octaveEnabled", "Octave Enabled", false);
     toggle("octaveDown", "Octave Down", false);
     add("drive", 0.0f, 10.0f, 0.0f);
@@ -230,7 +232,9 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
                 {
                     octave = std::abs(x) * 2.0f - 0.35f;
                 }
-                x = x * (1.0f - octaveMix) + octave * octaveMix;
+                const float octaveTone = 0.5f + value("octaveTone") * 0.1f;
+                const float octaveLevel = dbToGain((value("octaveLevel") - 5.0f) * 2.0f);
+                x = x * (1.0f - octaveMix) + octave * octaveMix * octaveTone * octaveLevel;
             }
             octavePrevious[ch] = x;
 
