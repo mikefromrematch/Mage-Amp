@@ -23,9 +23,9 @@ private:
     MageAudioProcessor& processor;
     MageKnobLookAndFeel knobLookAndFeel;
     juce::Label title, subtitle;
-    juce::Slider controls[23];
-    juce::Label labels[23];
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[23];
+    juce::Slider controls[25];
+    juce::Label labels[25];
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[25];
     juce::ToggleButton toggles[5];
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> toggleAttachments[5];
     juce::TextButton pedalSwitches[4];
