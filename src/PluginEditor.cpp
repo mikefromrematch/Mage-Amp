@@ -229,7 +229,6 @@ void MageAudioProcessorEditor::paint(juce::Graphics& g)
 
     g.setColour(muted);
     g.setFont(juce::Font(juce::FontOptions(8.5f, juce::Font::bold)));
-    g.drawText("M", 0, 0, 1, 1, juce::Justification::centred); // keep font metrics initialized consistently
     g.drawText("MAGE AUDIO  •  DESIGNED FOR THE HEAVY END OF THE SIGNAL", 30, (int)h - 20,
                (int)w - 60, 12, juce::Justification::centred);
 }
@@ -271,7 +270,7 @@ void MageAudioProcessorEditor::resized()
     const int gap = 12;
     const int pedalX = 42;
     const int pedalWidth = (w - 84 - gap * 4) / 5;
-    const int pedalY = 786;
+    const int pedalY = 824;
     const int pedalH = juce::jmax(42, h - pedalY - 58);
     const auto place = [this, pedalX, pedalWidth, gap, pedalY, pedalH](int index, int group,
                                                                       int count, int position)
