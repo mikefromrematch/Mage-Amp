@@ -48,20 +48,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout MageAudioProcessor::createLa
 
     // Octave and drive pedals
     add("octaveMix", 0.0f, 1.0f, 0.0f);
+    toggle("octaveEnabled", "Octave Enabled", false);
     toggle("octaveDown", "Octave Down", false);
     add("drive", 0.0f, 10.0f, 0.0f);
+    toggle("driveEnabled", "Drive Enabled", false);
     add("driveTone", 0.0f, 10.0f, 5.0f);
     add("driveLevel", 0.0f, 10.0f, 5.0f);
     toggle("driveBoost", "Drive Boost", false);
 
     // Delay
     add("delayTime", 40.0f, 1200.0f, 350.0f, " ms");
+    toggle("delayEnabled", "Delay Enabled", false);
     add("delayFeedback", 0.0f, 0.90f, 0.25f);
     add("delayMix", 0.0f, 1.0f, 0.0f);
     toggle("delaySync", "Delay Sync", false);
 
     // Reverb
     add("reverbDecay", 0.1f, 0.98f, 0.55f);
+    toggle("reverbEnabled", "Reverb Enabled", false);
     add("reverbSize", 0.0f, 1.0f, 0.55f);
     add("reverbTone", 0.0f, 1.0f, 0.65f);
     add("reverbMix", 0.0f, 1.0f, 0.0f);
@@ -165,6 +169,10 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     const float driveGain = 1.0f + driveAmount * 1.15f;
     const float driveOutput = dbToGain((value("driveLevel") - 5.0f) * 2.0f);
     const bool boost = value("driveBoost") > 0.5f;
+    const bool driveEnabled = value("driveEnabled") > 0.5f;
+    const bool octaveEnabled = value("octaveEnabled") > 0.5f;
+    const bool delayEnabled = value("delayEnabled") > 0.5f;
+    const bool reverbEnabled = value("reverbEnabled") > 0.5f;
     const bool octaveDown = value("octaveDown") > 0.5f;
     const bool gateEnabled = value("gateEnabled") > 0.5f;
     const bool gatePost = value("gatePost") > 0.5f;
@@ -199,13 +207,16 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
             x = presence[ch].processSample(x);
 
             // Drive pedal: asymmetrical soft clipping with a user-controlled tone filter.
-            const float preDrive = x * (ampDrive * driveGain * (boost ? 1.35f : 1.0f));
-            float driven = std::tanh(preDrive) * (1.0f + driveAmount * 0.08f);
-            driven = driveTone[ch].processSample(driven);
-            x = driven * driveOutput;
+            if (driveEnabled)
+            {
+                const float preDrive = x * (ampDrive * driveGain * (boost ? 1.35f : 1.0f));
+                float driven = std::tanh(preDrive) * (1.0f + driveAmount * 0.08f);
+                driven = driveTone[ch].processSample(driven);
+                x = driven * driveOutput;
+            }
 
             // Octave pedal: selectable sub-octave divider or rectified upper harmonic.
-            if (octaveMix > 0.0001f)
+            if (octaveEnabled && octaveMix > 0.0001f)
             {
                 float octave = 0.0f;
                 if (octaveDown)
@@ -235,7 +246,8 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
 
             const float delayed = delay.popSample(ch);
             delay.pushSample(ch, x + delayed * feedback);
-            x = x * (1.0f - delayMix) + delayed * delayMix;
+            if (delayEnabled)
+                x = x * (1.0f - delayMix) + delayed * delayMix;
 
             samples[i] = x;
         }
@@ -253,7 +265,8 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     juce::dsp::ProcessContextReplacing<float> context(block);
     if (cabinetIRLoaded.load())
         cabinetIR.process(context);
-    reverb.process(context);
+    if (reverbEnabled)
+        reverb.process(context);
 
     const float masterGain = dbToGain((master - 5.0f) * 2.0f);
     const float outputGain = dbToGain((output - 7.0f) * 2.0f);
