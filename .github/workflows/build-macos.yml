@@ -5,7 +5,7 @@ on:
   # Do not add pull_request here: this is a public repository and fork code must
   # never execute on the self-hosted machine.
   push:
-    branches: [main]
+    branches: [main, setup/initial-files]
   workflow_dispatch:
 
 permissions:
