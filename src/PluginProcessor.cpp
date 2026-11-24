@@ -4,7 +4,6 @@
 
 namespace
 {
-    constexpr float pi = 3.14159265358979323846f;
     float dbToGain(float db) { return juce::Decibels::decibelsToGain(db); }
     float knobDb(float value) { return (value - 5.0f) * 2.4f; }
 }
@@ -142,7 +141,7 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     }
 
     juce::dsp::Reverb::Parameters rp;
-    rp.roomSize = value("reverbSize");
+    rp.roomSize = juce::jlimit(0.0f, 1.0f, value("reverbSize") * 0.65f + value("reverbDecay") * 0.35f);
     rp.damping = 1.0f - value("reverbTone");
     rp.wetLevel = value("reverbMix");
     rp.dryLevel = 1.0f;
