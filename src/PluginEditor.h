@@ -2,6 +2,14 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
+class MageKnobLookAndFeel final : public juce::LookAndFeel_V4
+{
+public:
+    void drawRotarySlider(juce::Graphics&, int x, int y, int width, int height,
+                         float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
+                         juce::Slider&) override;
+};
+
 class MageAudioProcessorEditor final : public juce::AudioProcessorEditor
 {
 public:
@@ -11,6 +19,7 @@ public:
 
 private:
     MageAudioProcessor& processor;
+    MageKnobLookAndFeel knobLookAndFeel;
     juce::Label title, subtitle;
     juce::Slider controls[23];
     juce::Label labels[23];
