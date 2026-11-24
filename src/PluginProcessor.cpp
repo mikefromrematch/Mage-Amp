@@ -92,12 +92,25 @@ void MageAudioProcessor::prepareToPlay(double sampleRate, int blockSize)
     delay.reset();
     reverb.prepare(spec);
     reverb.reset();
+    cabinetIR.prepare(spec);
+    if (cabinetIRPath.isNotEmpty())
+    {
+        const juce::File irFile(cabinetIRPath);
+        if (irFile.existsAsFile())
+        {
+            cabinetIR.loadImpulseResponse(irFile, juce::dsp::Convolution::Stereo::no,
+                                          juce::dsp::Convolution::Trim::yes, 0,
+                                          juce::dsp::Convolution::Normalise::yes);
+            cabinetIRLoaded.store(true);
+        }
+    }
 }
 
 void MageAudioProcessor::releaseResources()
 {
     delay.reset();
     reverb.reset();
+    cabinetIR.reset();
 }
 
 bool MageAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -243,6 +256,8 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
 
     juce::dsp::AudioBlock<float> block(buffer);
     juce::dsp::ProcessContextReplacing<float> context(block);
+    if (cabinetIRLoaded.load())
+        cabinetIR.process(context);
     reverb.process(context);
 
     const float masterGain = dbToGain((master - 5.0f) * 2.0f);
@@ -253,6 +268,7 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
 void MageAudioProcessor::getStateInformation(juce::MemoryBlock& destination)
 {
     auto tree = state.copyState();
+    tree.setProperty("cabinetIRPath", cabinetIRPath, nullptr);
     juce::MemoryOutputStream stream(destination, false);
     tree.writeToStream(stream);
 }
@@ -261,7 +277,44 @@ void MageAudioProcessor::setStateInformation(const void* data, int size)
 {
     auto tree = juce::ValueTree::readFromData(data, static_cast<size_t>(size));
     if (tree.isValid())
+    {
         state.replaceState(tree);
+        cabinetIRPath = tree.getProperty("cabinetIRPath").toString();
+        if (cabinetIRPath.isNotEmpty())
+        {
+            const juce::File irFile(cabinetIRPath);
+            if (irFile.existsAsFile())
+                loadCabinetIR(irFile);
+            else
+                cabinetIRLoaded.store(false);
+        }
+    }
+}
+
+bool MageAudioProcessor::loadCabinetIR(const juce::File& file)
+{
+    if (!file.existsAsFile())
+        return false;
+
+    const auto extension = file.getFileExtension().toLowerCase();
+    if (extension != ".wav" && extension != ".aif" && extension != ".aiff")
+        return false;
+
+    cabinetIR.loadImpulseResponse(file, juce::dsp::Convolution::Stereo::no,
+                                  juce::dsp::Convolution::Trim::yes, 0,
+                                  juce::dsp::Convolution::Normalise::yes);
+    cabinetIRPath = file.getFullPathName();
+    cabinetIRName = file.getFileName();
+    cabinetIRLoaded.store(true);
+    return true;
+}
+
+void MageAudioProcessor::bypassCabinetIR()
+{
+    cabinetIR.reset();
+    cabinetIRLoaded.store(false);
+    cabinetIRPath.clear();
+    cabinetIRName = "IR BYPASSED";
 }
 
 juce::AudioProcessorEditor* MageAudioProcessor::createEditor()
