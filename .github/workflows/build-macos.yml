@@ -19,6 +19,12 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Add Homebrew tools to PATH
+        run: |
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "CMake location: $(command -v cmake || true)"
+          cmake --version
+
       - name: Configure JUCE project
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
