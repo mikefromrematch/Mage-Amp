@@ -45,7 +45,7 @@ target_compile_definitions(MAGE PUBLIC
     JUCE_USE_CURL=0
 )
 
-juce_add_binary_data(MageAssets SOURCES assets/mage_mark.png)
+juce_add_binary_data(MageAssets SOURCES assets/mage_mark.png assets/mage_wordmark.png)
 
 target_link_libraries(MAGE PRIVATE
     MageAssets

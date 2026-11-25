@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "BinaryData.h"
 
 using namespace mage::ui;
 using namespace mage::ui::colours;
@@ -245,11 +246,18 @@ void MainPanel::paint(juce::Graphics& g)
     g.drawText("OUT", 1262.0f, 26.0f, 50.0f, 28.0f, juce::Justification::centredRight);
 
     // ---- Horizon wordmark ----
+    // The brush "Mage" wordmark sits on the horizon line; the lines and etchings stop short of it.
+    static const juce::Image wordmark = juce::ImageCache::getFromMemory(BinaryData::mage_wordmark_png,
+                                                                        BinaryData::mage_wordmark_pngSize);
+    const float markH = 84.0f;
+    const float markW = wordmark.isValid() ? markH * (float)wordmark.getWidth() / (float)wordmark.getHeight() : 120.0f;
+    const float gapL = W * 0.5f - markW * 0.5f - 6.0f, gapR = W * 0.5f + markW * 0.5f + 6.0f;
+
     g.setColour(juce::Colour(0xff14213a).withAlpha(0.55f));
     for (int n = 0; n < 17; ++n)
     {
         const float x = 18.0f + n * 96.0f;
-        if (x > 600.0f && x < 960.0f)
+        if (x + 56.0f > gapL - 10.0f && x < gapR + 10.0f)
             continue;
         juce::Path etching;
         etching.startNewSubPath(x, 112.0f);
@@ -260,16 +268,19 @@ void MainPanel::paint(juce::Graphics& g)
         g.strokePath(etching, juce::PathStrokeType(0.8f));
     }
     g.setColour(cyan.withAlpha(0.8f));
-    g.drawLine(0.0f, 112.0f, 628.0f, 112.0f, 1.0f);
+    g.drawLine(0.0f, 112.0f, gapL, 112.0f, 1.0f);
     g.setColour(pink.withAlpha(0.8f));
-    g.drawLine(972.0f, 112.0f, W, 112.0f, 1.0f);
+    g.drawLine(gapR, 112.0f, W, 112.0f, 1.0f);
     g.setColour(cyan);
-    g.fillEllipse(624.0f, 108.5f, 7.0f, 7.0f);
+    g.fillEllipse(gapL - 4.0f, 108.5f, 7.0f, 7.0f);
     g.setColour(pink);
-    g.fillEllipse(969.0f, 108.5f, 7.0f, 7.0f);
-    g.setColour(ivory);
-    g.setFont(font(48.0f, false, 0.55f));
-    g.drawText("MAGE", 640.0f, 84.0f, 330.0f, 56.0f, juce::Justification::centred);
+    g.fillEllipse(gapR - 3.0f, 108.5f, 7.0f, 7.0f);
+    if (wordmark.isValid())
+    {
+        g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
+        g.drawImage(wordmark, { W * 0.5f - markW * 0.5f, 112.0f - markH * 0.5f, markW, markH },
+                    juce::RectanglePlacement::centred);
+    }
 
     // ---- Noise gate ----
     {
