@@ -556,7 +556,7 @@ void LevelMeter::paint(juce::Graphics& g)
 // ---------------------------------------------------------------------------
 namespace
 {
-    enum class Glyph { bat, cat, wand, sword, wisp };
+    enum class Glyph { bat, cloud, wand, sword, wisp };
 
     struct GlyphShape { juce::Path fill, stroke, accent; };
 
@@ -569,11 +569,11 @@ namespace
                 "C28 24 31 23 33 25 C35 22 38 21 41 23 C40 19 41 16 45 15 C38 11 32 13 30 17 C28 16 26 17 24 21 Z "
                 "M21.5 19.5 L20.5 15 L23.5 18.5 Z M26.5 19.5 L27.5 15 L24.5 18.5 Z"), {},
               P("M21.4 20.6 A0.9 0.9 0 1 1 21.41 20.6 Z M26.6 20.6 A0.9 0.9 0 1 1 26.61 20.6 Z") },
-            // cat: sitting, tail curled up the side
-            { P("M18 44 C12 44 11 36 14 30 C16 26 17 22 17 18 L15.5 9 L20.5 13.5 C22.5 12.8 25.5 12.8 27.5 13.5 "
-                "L32.5 9 L31 18 C31 22 32 26 34 30 C37 36 36 44 30 44 Z"),
-              P("M31 42.5 C39 43 43 38 40.5 31"),
-              P("M21.2 18.5 A1.3 1.3 0 1 1 21.21 18.5 Z M26.8 18.5 A1.3 1.3 0 1 1 26.81 18.5 Z") },
+            // cloud: puffy outline (fill), curled tail (stroke), inner swirls (accent)
+            { P("M9 35 A6 6 0 0 1 9 23 A8 8 0 0 1 22 15 A9 9 0 0 1 37 19 A7 7 0 0 1 40 33 Q39 35 36 35 Z"),
+              P("M9 35 C5 35 3 39 6 41 C8 42.5 10 40 8.5 39"),
+              P("M13.5 30 C11.5 23.5 20.5 20.5 23.5 25 C25.5 28.5 21 31.5 18.8 29.2 C17.2 27.5 19.5 25.2 21.2 27 "
+                "M24.5 31 C28.5 31 30.5 28.5 33.5 28.5 C37 28.5 37.5 24.5 35 23.5") },
             // wand: slim staff tipped with a star
             { P("M35 6 L36.6 11.4 L42 13 L36.6 14.6 L35 20 L33.4 14.6 L28 13 L33.4 11.4 Z"),
               P("M10 41 L30 18"),
@@ -676,8 +676,8 @@ void MagicFrieze::paint(juce::Graphics& g)
     struct Placed { Glyph glyph; float t; float rotation; };
     const Placed placed[] = {
         { Glyph::wisp, 0.05f, 0.0f },  { Glyph::bat, 0.15f, 0.0f },    { Glyph::wand, 0.25f, 0.0f },
-        { Glyph::cat, 0.35f, 0.0f },   { Glyph::wisp, 0.44f, 0.0f },   { Glyph::sword, 0.53f, -0.75f },
-        { Glyph::bat, 0.62f, 0.15f },  { Glyph::cat, 0.71f, 0.0f },    { Glyph::wand, 0.80f, 0.0f },
+        { Glyph::cloud, 0.35f, 0.0f },   { Glyph::wisp, 0.44f, 0.0f },   { Glyph::sword, 0.53f, -0.75f },
+        { Glyph::bat, 0.62f, 0.15f },  { Glyph::cloud, 0.71f, 0.0f },    { Glyph::wand, 0.80f, 0.0f },
         { Glyph::sword, 0.88f, 0.75f },{ Glyph::wisp, 0.96f, 0.0f },
     };
     const float size = r.getHeight() * 0.95f;
@@ -694,6 +694,7 @@ void MagicFrieze::paint(juce::Graphics& g)
         float y = waveY(x, i % 2 == 0 ? 0.0f : juce::MathConstants<float>::pi, amp) * 0.35f + cy * 0.65f;
         if (p.glyph == Glyph::bat)  y += bob * 3.0f - 2.0f;
         if (p.glyph == Glyph::wisp) y += bob * 2.5f;
+        if (p.glyph == Glyph::cloud) y += bob * 1.5f;
         const float rot = p.rotation + (p.glyph == Glyph::bat ? 0.08f * bob : 0.0f);
 
         const auto& shape = glyphShape(p.glyph);
@@ -718,8 +719,21 @@ void MagicFrieze::paint(juce::Graphics& g)
 
         switch (p.glyph)
         {
+            case Glyph::cloud:
+            {
+                juce::ColourGradient body(tint.withAlpha(0.28f * fade), x, y - size * 0.3f,
+                                          juce::Colour(0xff0a0d1b).withAlpha(0.9f * fade), x, y + size * 0.3f, false);
+                g.setGradientFill(body);
+                g.fillPath(fillPath);
+                g.setColour(tint.withAlpha(0.95f * fade));
+                g.strokePath(fillPath, juce::PathStrokeType(sw * 0.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+                g.setColour(tint.withAlpha(0.7f * fade));
+                g.strokePath(strokePath, juce::PathStrokeType(sw * 0.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+                g.setColour(colours::ivory.withAlpha(0.85f * fade));
+                g.strokePath(accentPath, juce::PathStrokeType(sw * 0.7f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+                break;
+            }
             case Glyph::bat:
-            case Glyph::cat:
                 g.setColour(juce::Colour(0xff0a0d1b).withAlpha(fade));          // silhouette
                 g.fillPath(fillPath);
                 g.setColour(tint.withAlpha(0.9f * fade));                      // rim light

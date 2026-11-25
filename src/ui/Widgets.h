@@ -110,7 +110,7 @@ private:
 };
 
 // Animated frieze for the top of the amp head: two flowing waves carrying
-// magical silhouettes (wands, swords, cats, bats, wisps) and twinkling sparkles.
+// magical silhouettes (wands, swords, swirly clouds, bats, wisps) and twinkling sparkles.
 class MagicFrieze final : public juce::Component, private juce::Timer
 {
 public:
