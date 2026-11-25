@@ -43,6 +43,10 @@ jobs:
             exit 1
           fi
           ditto "$APP" dist/MAGE.app
+          # Ad-hoc sign the whole bundle so macOS sees a valid (if unidentified)
+          # signature instead of reporting the app as "damaged".
+          codesign --force --deep --sign - dist/MAGE.app
+          codesign --verify --deep --strict --verbose=2 dist/MAGE.app
           cd dist
           ditto -c -k --sequesterRsrc --keepParent MAGE.app MAGE-macOS.zip
 
