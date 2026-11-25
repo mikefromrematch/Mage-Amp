@@ -249,7 +249,7 @@ void MainPanel::paint(juce::Graphics& g)
     // The brush "Mage" wordmark sits on the horizon line; the lines and etchings stop short of it.
     static const juce::Image wordmark = juce::ImageCache::getFromMemory(BinaryData::mage_wordmark_png,
                                                                         BinaryData::mage_wordmark_pngSize);
-    const float markH = 84.0f;
+    const float markH = 90.0f;
     const float markW = wordmark.isValid() ? markH * (float)wordmark.getWidth() / (float)wordmark.getHeight() : 120.0f;
     const float gapL = W * 0.5f - markW * 0.5f - 6.0f, gapR = W * 0.5f + markW * 0.5f + 6.0f;
 
