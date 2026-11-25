@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MAGE VERSION 0.1.0 LANGUAGES C CXX)
+project(MAGE VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -34,7 +34,11 @@ juce_generate_juce_header(MAGE)
 target_sources(MAGE PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
+    src/PresetManager.cpp
+    src/ui/Widgets.cpp
 )
+
+target_include_directories(MAGE PRIVATE src)
 
 target_compile_definitions(MAGE PUBLIC
     JUCE_WEB_BROWSER=0
