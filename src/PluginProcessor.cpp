@@ -70,6 +70,7 @@ MageAudioProcessor::MageAudioProcessor()
       presets(state, undoManager)
 {
     p = std::make_unique<Params>(state);
+    midiLearn.loadDefault();
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout MageAudioProcessor::createLayout()
@@ -303,9 +304,12 @@ bool MageAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) cons
     return outOk && inOk;
 }
 
-void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+    // MIDI-learned controls update their parameters first so they take effect this block.
+    midiLearn.process(midi);
+    midi.clear();
     const int n = buffer.getNumSamples();
     const int numOut = getTotalNumOutputChannels();
     if (n == 0 || buffer.getNumChannels() == 0)
@@ -571,6 +575,8 @@ void MageAudioProcessor::getStateInformation(juce::MemoryBlock& destination)
 {
     auto tree = state.copyState();
     tree.setProperty("cabinetIRPath", cabinetIRPath, nullptr);
+    tree.removeChild(tree.getChildWithName(mage::MidiLearn::treeType), nullptr);
+    tree.appendChild(midiLearn.toValueTree(), nullptr);
     juce::MemoryOutputStream stream(destination, false);
     tree.writeToStream(stream);
 }
@@ -581,6 +587,13 @@ void MageAudioProcessor::setStateInformation(const void* data, int size)
     if (!tree.isValid() || !tree.hasType(state.state.getType()))
         return;
 
+    // The MIDI map travels with the session but lives outside the parameter tree.
+    // Older sessions without one keep the user's default map.
+    if (auto map = tree.getChildWithName(mage::MidiLearn::treeType); map.isValid())
+    {
+        midiLearn.fromValueTree(map);
+        tree.removeChild(map, nullptr);
+    }
     state.replaceState(tree);
     undoManager.clearUndoHistory();
     cabinetIRPath = tree.getProperty("cabinetIRPath").toString();

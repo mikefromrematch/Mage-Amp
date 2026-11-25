@@ -535,7 +535,7 @@ Knob::Knob(juce::AudioProcessorValueTreeState& state, const juce::String& paramI
     if (auto* param = state.getParameter(paramID))
     {
         slider.setDoubleClickReturnValue(true, param->convertFrom0to1(param->getDefaultValue()));
-        slider.setTooltip(param->getName(64) + "  (double-click to reset)");
+        slider.setTooltip(param->getName(64) + "  (double-click to reset, right-click for MIDI Learn)");
     }
 }
 
@@ -573,13 +573,15 @@ Footswitch::Footswitch(juce::AudioProcessorValueTreeState& state, const juce::St
         attachment = std::make_unique<juce::ParameterAttachment>(*param,
             [this](float v) { on = v > 0.5f; repaint(); }, state.undoManager);
         attachment->sendInitialUpdate();
-        setTooltip(param->getName(64));
+        setTooltip(param->getName(64) + "  (right-click for MIDI Learn)");
     }
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
 }
 
-void Footswitch::mouseDown(const juce::MouseEvent&)
+void Footswitch::mouseDown(const juce::MouseEvent& e)
 {
+    if (e.mods.isPopupMenu())
+        return;
     pressed = true;
     const bool momentary = isMomentary && isMomentary();
     if (attachment != nullptr)
@@ -589,6 +591,8 @@ void Footswitch::mouseDown(const juce::MouseEvent&)
 
 void Footswitch::mouseUp(const juce::MouseEvent&)
 {
+    if (!pressed)
+        return;
     pressed = false;
     if (isMomentary && isMomentary() && attachment != nullptr)
         attachment->setValueAsCompleteGesture(0.0f);
@@ -1090,6 +1094,8 @@ ChannelSwitch::ChannelSwitch(juce::AudioProcessorValueTreeState& state, const ju
 
 void ChannelSwitch::mouseDown(const juce::MouseEvent& e)
 {
+    if (e.mods.isPopupMenu())
+        return;
     const int wanted = e.x < getWidth() / 2 ? 0 : 1;
     if (attachment != nullptr && wanted != channel)
         attachment->setValueAsCompleteGesture((float)wanted);

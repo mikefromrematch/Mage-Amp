@@ -24,7 +24,7 @@ juce_add_plugin(MAGE
     PLUGIN_CODE Mage
     FORMATS VST3 Standalone
     IS_SYNTH FALSE
-    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
 )
@@ -35,6 +35,7 @@ target_sources(MAGE PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
     src/PresetManager.cpp
+    src/MidiLearn.cpp
     src/ui/Widgets.cpp
 )
 

@@ -15,6 +15,8 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void refresh(); // called by the editor's timer (~30 Hz)
+    void paintOverChildren(juce::Graphics&) override;
+    void mouseDown(const juce::MouseEvent&) override;   // right-click on a control: MIDI Learn menu
     const mage::ui::Theme& getTheme() const override { return *theme; }
 
 private:
@@ -37,6 +39,10 @@ private:
     void setChannel(bool fae);   // swaps pedals and theme
     void applyTheme();
     juce::Colour pedalAccent(int slot) const;
+    void showMidiMenu(juce::Component& control, const juce::String& paramID);
+    juce::Component* findLearnable(const juce::String& paramID) const;
+    juce::Rectangle<int> midiBadgeArea(const juce::Component&) const;
+    void updateMidiHighlight();
 
     MageAudioProcessor& processor;
     mage::ui::MageLookAndFeel lnf;
@@ -89,6 +95,12 @@ private:
     std::unique_ptr<juce::ParameterAttachment> syncWatcher;
     std::unique_ptr<juce::FileChooser> irChooser;
     std::unique_ptr<juce::AlertWindow> saveDialog;
+
+    // MIDI Learn: controls that can be mapped, and the highlight state.
+    std::vector<std::pair<juce::Component*, juce::String>> learnables;
+    juce::String highlightParam, flashParam;
+    juce::Rectangle<int> highlightArea;
+    int flashFrames = 0;
 
     juce::String irDisplayName, presetDisplayName;
     bool gateLed = false;

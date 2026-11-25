@@ -73,6 +73,25 @@ MainPanel::MainPanel(MageAudioProcessor& p)
              &freezeMix, &freezeFade, &freezeTone, &freezeMomentary, &shimmerSwitch, &freezeSwitch })
         addAndMakeVisible(c);
 
+    // --- MIDI Learn: right-click any of these to map it to a MIDI CC ---
+    learnables = {
+        { &gain, "gain" }, { &bass, "bass" }, { &mid, "mid" }, { &treble, "treble" }, { &presence, "presence" },
+        { &depth, "depth" }, { &master, "master" }, { &gateThreshold, "gate" }, { &gateRelease, "gateDecay" },
+        { &gateOn, "gateEnabled" }, { &gatePost, "gatePost" }, { &lowCut, "lowCut" }, { &highCut, "highCut" },
+        { &octaveMix, "octaveMix" }, { &octaveTone, "octaveTone" }, { &octaveLevel, "octaveLevel" },
+        { &octaveDown, "octaveDown" }, { &drive, "drive" }, { &driveTone, "driveTone" }, { &driveLevel, "driveLevel" },
+        { &driveBoost, "driveBoost" }, { &delayTime, "delayTime" }, { &delayDivision, "delayDivision" },
+        { &delayFeedback, "delayFeedback" }, { &delayMix, "delayMix" }, { &delaySync, "delaySync" },
+        { &reverbDecay, "reverbDecay" }, { &reverbSize, "reverbSize" }, { &reverbTone, "reverbTone" },
+        { &reverbMix, "reverbMix" }, { &octaveSwitch, "octaveEnabled" }, { &driveSwitch, "driveEnabled" },
+        { &delaySwitch, "delayEnabled" }, { &reverbSwitch, "reverbEnabled" }, { &output, "output" },
+        { &channelSwitch, "ampChannel" }, { &shimmerMix, "shimmerMix" }, { &shimmerDecay, "shimmerDecay" },
+        { &shimmerAmount, "shimmerAmount" }, { &shimmerTone, "shimmerTone" }, { &shimmerFifth, "shimmerFifth" },
+        { &freezeMix, "freezeMix" }, { &freezeFade, "freezeFade" }, { &freezeTone, "freezeTone" },
+        { &freezeMomentary, "freezeMomentary" }, { &shimmerSwitch, "shimmerEnabled" }, { &freezeSwitch, "freezeEnabled" } };
+    for (auto& [control, id] : learnables)
+        control->addMouseListener(this, true);
+
     shimmerFifth.setTooltip("Shift the shimmer up a fifth instead of an octave");
     freezeMomentary.setTooltip("Freeze only while the footswitch is held");
     freezeSwitch.isMomentary = [this] { return processor.state.getRawParameterValue("freezeMomentary")->load() > 0.5f; };
@@ -136,6 +155,7 @@ MainPanel::MainPanel(MageAudioProcessor& p)
 
 MainPanel::~MainPanel()
 {
+    processor.midiLearn.cancelLearning();
     if (saveDialog != nullptr)
         saveDialog->setLookAndFeel(nullptr);
     setLookAndFeel(nullptr);
@@ -292,6 +312,130 @@ void MainPanel::refresh()
 
     undoButton.setEnabled(processor.undoManager.canUndo());
     redoButton.setEnabled(processor.undoManager.canRedo());
+
+    updateMidiHighlight();
+}
+
+// ---------------------------------------------------------------------------
+// MIDI Learn
+juce::Component* MainPanel::findLearnable(const juce::String& paramID) const
+{
+    for (auto& [control, id] : learnables)
+        if (id == paramID)
+            return control;
+    return nullptr;
+}
+
+void MainPanel::mouseDown(const juce::MouseEvent& e)
+{
+    if (!e.mods.isPopupMenu())
+        return;
+    for (auto* c = e.originalComponent; c != nullptr && c != this; c = c->getParentComponent())
+        for (auto& [control, id] : learnables)
+            if (control == c)
+            {
+                showMidiMenu(*control, id);
+                return;
+            }
+}
+
+void MainPanel::showMidiMenu(juce::Component& control, const juce::String& paramID)
+{
+    auto& learn = processor.midiLearn;
+    const int cc = learn.getCCFor(paramID);
+    const bool learningThis = learn.getLearningParam() == paramID;
+
+    juce::PopupMenu menu;
+    if (auto* param = processor.state.getParameter(paramID))
+        menu.addSectionHeader(param->getName(40) + (cc >= 0 ? "  -  MIDI CC " + juce::String(cc) : juce::String()));
+    if (learningThis)
+        menu.addItem(1, "Cancel MIDI Learn");
+    else
+        menu.addItem(2, cc >= 0 ? "Re-learn MIDI" : "MIDI Learn");
+    menu.addItem(3, "Clear MIDI", cc >= 0);
+    if (learn.hasAnyMapping())
+    {
+        menu.addSeparator();
+        menu.addItem(4, "Clear all MIDI mappings");
+    }
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&control),
+        [safe = juce::Component::SafePointer<MainPanel>(this), paramID](int result)
+        {
+            if (safe == nullptr || result == 0)
+                return;
+            auto& ml = safe->processor.midiLearn;
+            switch (result)
+            {
+                case 1: ml.cancelLearning(); break;
+                case 2: ml.startLearning(paramID); break;
+                case 3: ml.clear(paramID); ml.saveAsDefault(); break;
+                case 4: ml.clearAll(); ml.saveAsDefault(); break;
+                default: break;
+            }
+            safe->updateMidiHighlight();
+        });
+}
+
+juce::Rectangle<int> MainPanel::midiBadgeArea(const juce::Component& c) const
+{
+    const auto b = c.getBounds();
+    return { b.getCentreX() - 92, b.getY() - 26, 184, 22 };
+}
+
+void MainPanel::updateMidiHighlight()
+{
+    auto& learn = processor.midiLearn;
+    if (const int learned = learn.lastLearnedParam.exchange(-1); learned >= 0)
+    {
+        flashParam = learn.getParamID(learned);
+        flashFrames = 50;              // ~1.7 s at 30 Hz
+        learn.saveAsDefault();         // new instances start with the same map
+    }
+    else if (flashFrames > 0)
+    {
+        --flashFrames;
+    }
+
+    const auto learning = learn.getLearningParam();
+    const auto shown = learning.isNotEmpty() ? learning : (flashFrames > 0 ? flashParam : juce::String());
+    juce::Rectangle<int> area;
+    if (auto* c = findLearnable(shown); c != nullptr && c->isVisible())
+        area = c->getBounds().expanded(8).getUnion(midiBadgeArea(*c)).expanded(4);
+
+    if (!highlightArea.isEmpty())
+        repaint(highlightArea);
+    highlightParam = shown;
+    highlightArea = area;
+    if (!area.isEmpty())
+        repaint(area);
+}
+
+void MainPanel::paintOverChildren(juce::Graphics& g)
+{
+    auto* c = findLearnable(highlightParam);
+    if (c == nullptr || !c->isVisible())
+        return;
+    useTheme(*theme);
+
+    const bool learning = processor.midiLearn.getLearningParam() == highlightParam;
+    const float t = (float)(juce::Time::getMillisecondCounter() % 1200) / 1200.0f;
+    const float pulse = learning ? 0.55f + 0.45f * std::sin(t * juce::MathConstants<float>::twoPi)
+                                 : (float)flashFrames / 50.0f;
+    const auto colour = learning ? pink : cyan;
+
+    g.setColour(colour.withAlpha(0.9f * pulse));
+    g.drawRoundedRectangle(c->getBounds().toFloat().expanded(6.0f), 10.0f, 2.0f);
+
+    const auto badge = midiBadgeArea(*c).toFloat();
+    g.setColour(bg.withAlpha(0.92f));
+    g.fillRoundedRectangle(badge, 11.0f);
+    g.setColour(colour.withAlpha(0.6f + 0.4f * pulse));
+    g.drawRoundedRectangle(badge.reduced(0.5f), 11.0f, 1.2f);
+    g.setFont(font(12.0f, true, 0.12f));
+    const int cc = processor.midiLearn.getCCFor(highlightParam);
+    g.drawText(learning ? juce::String("MOVE A MIDI CONTROL") : "MIDI CC " + juce::String(cc), badge,
+               juce::Justification::centred, false);
 }
 
 // ---------------------------------------------------------------------------

@@ -76,6 +76,16 @@ public:
     void applyTheme(const Theme&);
 };
 
+// Right-clicks are left to the panel (MIDI Learn menu), so they never move a control.
+class RotarySlider final : public juce::Slider
+{
+public:
+    void mouseDown(const juce::MouseEvent& e) override        { if (!e.mods.isPopupMenu()) Slider::mouseDown(e); }
+    void mouseDrag(const juce::MouseEvent& e) override        { if (!e.mods.isPopupMenu()) Slider::mouseDrag(e); }
+    void mouseUp(const juce::MouseEvent& e) override          { if (!e.mods.isPopupMenu()) Slider::mouseUp(e); }
+    void mouseDoubleClick(const juce::MouseEvent& e) override { if (!e.mods.isPopupMenu()) Slider::mouseDoubleClick(e); }
+};
+
 // Rotary control with a caption underneath. While hovered or dragged the
 // caption turns into the live value. Double-click resets to default.
 class Knob final : public juce::Component
@@ -91,7 +101,7 @@ public:
     void setAccent(juce::Colour);
 
 private:
-    juce::Slider slider;
+    RotarySlider slider;
     juce::String caption;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
 };
@@ -122,6 +132,8 @@ public:
     LedToggle(juce::AudioProcessorValueTreeState&, const juce::String& paramID, const juce::String& label,
               juce::Colour accent);
     void setAccent(juce::Colour);
+    void mouseDown(const juce::MouseEvent& e) override { if (!e.mods.isPopupMenu()) ToggleButton::mouseDown(e); }
+    void mouseUp(const juce::MouseEvent& e) override   { if (!e.mods.isPopupMenu()) ToggleButton::mouseUp(e); }
 private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> attachment;
 };

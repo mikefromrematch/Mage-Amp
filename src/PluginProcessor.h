@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include "dsp/AmpDSP.h"
 #include "PresetManager.h"
+#include "MidiLearn.h"
 
 class MageAudioProcessor final : public juce::AudioProcessor
 {
@@ -16,7 +17,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
     const juce::String getName() const override { return "MAGE"; }
-    bool acceptsMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 8.0; }
@@ -37,6 +38,7 @@ public:
     juce::UndoManager undoManager;
     juce::AudioProcessorValueTreeState state;
     mage::PresetManager presets;
+    mage::MidiLearn midiLearn { *this };   // CC -> parameter map (right-click a control to learn)
 
     // Cabinet impulse response (message thread only).
     bool loadCabinetIR(const juce::File& file);
