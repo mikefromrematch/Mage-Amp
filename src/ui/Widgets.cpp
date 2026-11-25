@@ -92,6 +92,147 @@ void drawCrest(juce::Graphics& g, float x, float y, float size)
 }
 
 // ---------------------------------------------------------------------------
+namespace
+{
+    struct RuneElement
+    {
+        juce::Path path;
+        juce::uint32 colour;
+        float alpha = 1.0f;
+        enum Kind { stroke, fill, strokeAndTint, strokeOverBackground } kind = stroke;
+    };
+
+    juce::String circle(float cx, float cy, float r)
+    {
+        return "M" + juce::String(cx + r) + " " + juce::String(cy)
+             + " A" + juce::String(r) + " " + juce::String(r) + " 0 1 1 " + juce::String(cx - r) + " " + juce::String(cy)
+             + " A" + juce::String(r) + " " + juce::String(r) + " 0 1 1 " + juce::String(cx + r) + " " + juce::String(cy) + " Z";
+    }
+
+    const std::vector<RuneElement>& runeElements(Rune rune)
+    {
+        constexpr juce::uint32 C = 0xff59ddff, P = 0xffff70d5, B = 0xff458bff, V = 0xffb06bff,
+                               I = 0xffedf4ff, L = 0xff9a8bff, M = 0xff91a3ba;
+        using K = RuneElement;
+        auto e = [](const juce::String& d, juce::uint32 colour, K::Kind kind = K::stroke, float alpha = 1.0f)
+        {
+            return RuneElement { juce::Drawable::parseSVGPath(d), colour, alpha, kind };
+        };
+
+        static const std::array<std::vector<RuneElement>, 12> table {{
+            // gain: flame
+            { e("M24 5 L33 22 L28 24 L34 34 L24 43 L14 34 L20 24 L15 22 Z", C),
+              e("M24 26 L28 33 L24 37 L20 33 Z", P, K::fill) },
+            // equalizer: three staves
+            { e("M13 8 L13 40 M24 8 L24 40 M35 8 L35 40", B),
+              e(circle(13, 30, 4) + circle(24, 16, 4) + circle(35, 25, 4), C, K::strokeOverBackground) },
+            // presence: seer's eye
+            { e("M5 24 Q24 7 43 24 Q24 41 5 24 Z", C),
+              e(circle(24, 24, 6), P),
+              e(circle(24, 24, 2), I, K::fill) },
+            // depth: sinking waves
+            { e("M6 14 Q15 8 24 14 T42 14", C),
+              e("M10 25 Q17 20 24 25 T38 25", L),
+              e("M15 36 Q19.5 32 24 36 T33 36", P) },
+            // power: sun
+            { e(circle(24, 24, 8), P),
+              e("M24 4 L24 10 M24 38 L24 44 M4 24 L10 24 M38 24 L44 24 M10 10 L14 14 M34 34 L38 38 M38 10 L34 14 M10 38 L14 34", C) },
+            // gate: portcullis
+            { e("M11 42 L11 20 A13 13 0 0 1 37 20 L37 42", C),
+              e("M20 10 L20 42 M28 10 L28 42 M11 29 L37 29", C),
+              e("M7 42 L41 42", P) },
+            // octave: descent
+            { e("M10 12 L24 22 L38 12", V),
+              e("M10 25 L24 35 L38 25", V, K::stroke, 0.6f),
+              e(circle(24, 42, 2.4f), P, K::fill) },
+            // drive: bolt
+            { e("M28 4 L13 27 L23 27 L19 44 L35 19 L25 19 Z", P, K::strokeAndTint) },
+            // delay: echoes
+            { e(circle(10, 24, 3.4f), C, K::fill),
+              e("M17.07 16.93 A10 10 0 0 1 17.07 31.07", C),
+              e("M22.73 11.27 A18 18 0 0 1 22.73 36.73", C, K::stroke, 0.7f),
+              e("M28.38 5.62 A26 26 0 0 1 28.38 42.38", C, K::stroke, 0.4f) },
+            // reverb: spiral
+            { e("M24 24 A3 3 0 0 1 30 24 A6 6 0 0 1 18 24 A9 9 0 0 1 36 24 A12 12 0 0 1 12 24 A15 15 0 0 1 42 24", B),
+              e(circle(24, 24, 1.8f), I, K::fill) },
+            // cabinet: speaker
+            { e("M11 7 L37 7 Q41 7 41 11 L41 37 Q41 41 37 41 L11 41 Q7 41 7 37 L7 11 Q7 7 11 7 Z", P),
+              e(circle(24, 24, 10), P),
+              e(circle(24, 24, 3), C, K::fill),
+              e(circle(11.5f, 11.5f, 1.4f) + circle(36.5f, 11.5f, 1.4f) + circle(11.5f, 36.5f, 1.4f) + circle(36.5f, 36.5f, 1.4f), M, K::fill) },
+            // output: ascent
+            { e("M24 42 L24 7 M14 17 L24 7 L34 17", P),
+              e("M16 30 L24 24 L32 30", P, K::stroke, 0.55f),
+              e("M12 42 L36 42", C) },
+        }};
+        return table[static_cast<size_t>(rune)];
+    }
+}
+
+void drawSectionRune(juce::Graphics& g, Rune rune, juce::Rectangle<float> area, float alpha, juce::Colour mono)
+{
+    const float size = juce::jmin(area.getWidth(), area.getHeight());
+    const float scale = size / 48.0f;
+    const auto transform = juce::AffineTransform::scale(scale)
+        .translated(area.getCentreX() - size * 0.5f, area.getCentreY() - size * 0.5f);
+    const bool monochrome = !mono.isTransparent();
+    // Small runes get a slightly heavier stroke so they stay legible.
+    const float strokeWidth = juce::jmax(1.3f, 2.4f * scale * (size < 32.0f ? 1.25f : 1.0f));
+    const juce::PathStrokeType stroke(strokeWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
+
+    for (const auto& el : runeElements(rune))
+    {
+        const auto colour = (monochrome ? mono : juce::Colour(el.colour)).withMultipliedAlpha(el.alpha * alpha);
+        auto path = el.path;
+        path.applyTransform(transform);
+        switch (el.kind)
+        {
+            case RuneElement::fill:
+                g.setColour(monochrome ? colour.withMultipliedAlpha(0.8f) : colour);
+                g.fillPath(path);
+                break;
+            case RuneElement::strokeAndTint:
+                g.setColour(colour.withMultipliedAlpha(0.18f));
+                g.fillPath(path);
+                g.setColour(colour);
+                g.strokePath(path, stroke);
+                break;
+            case RuneElement::strokeOverBackground:
+                if (!monochrome)
+                {
+                    g.setColour(bg.withMultipliedAlpha(alpha));
+                    g.fillPath(path);
+                }
+                g.setColour(colour);
+                g.strokePath(path, stroke);
+                break;
+            case RuneElement::stroke:
+                g.setColour(colour);
+                g.strokePath(path, stroke);
+                break;
+        }
+    }
+}
+
+void drawRuneTitle(juce::Graphics& g, Rune rune, const juce::String& text, juce::Rectangle<float> area,
+                   const juce::Font& f, juce::Colour textColour, float runeSize, juce::Justification justification)
+{
+    const float gap = runeSize * 0.4f;
+    const float textW = juce::GlyphArrangement::getStringWidth(f, text);
+    const float total = runeSize + gap + textW;
+    float x = area.getX();
+    if (justification.testFlags(juce::Justification::horizontallyCentred))
+        x = area.getCentreX() - total * 0.5f;
+    else if (justification.testFlags(juce::Justification::right))
+        x = area.getRight() - total;
+    drawSectionRune(g, rune, { x, area.getCentreY() - runeSize * 0.5f, runeSize, runeSize });
+    g.setColour(textColour);
+    g.setFont(f);
+    g.drawText(text, juce::Rectangle<float>(x + runeSize + gap, area.getY(), textW + 4.0f, area.getHeight()),
+               juce::Justification::centredLeft, false);
+}
+
+// ---------------------------------------------------------------------------
 MageLookAndFeel::MageLookAndFeel()
 {
     setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff0c1222));

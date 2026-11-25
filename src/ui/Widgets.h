@@ -25,6 +25,16 @@ void drawRune(juce::Graphics&, float x, float y, float size, juce::Colour);
 void drawScrew(juce::Graphics&, juce::Point<float> centre, float radius, juce::Colour accent);
 void drawCrest(juce::Graphics&, float x, float y, float size);
 
+// The MAGE section runes (one per part of the amp), drawn on a 48-unit grid.
+enum class Rune { gain, equalizer, presence, depth, power, gate, octave, drive, delay, reverb, cabinet, output };
+// Full-colour rune in `area` (kept square). With `mono` set, every stroke uses that colour instead.
+void drawSectionRune(juce::Graphics&, Rune, juce::Rectangle<float> area, float alpha = 1.0f,
+                     juce::Colour mono = {});
+// Centred title with its rune in front of it.
+void drawRuneTitle(juce::Graphics&, Rune, const juce::String& text, juce::Rectangle<float> area,
+                   const juce::Font&, juce::Colour textColour, float runeSize,
+                   juce::Justification justification = juce::Justification::centred);
+
 class MageLookAndFeel final : public juce::LookAndFeel_V4
 {
 public:

@@ -191,7 +191,7 @@ void MainPanel::refresh()
     if (const bool g = processor.gateIsOpen.load(); g != gateLed)
     {
         gateLed = g;
-        repaint(layout::i(layout::gate.getRight() - 40.0f, layout::gate.getY() + 12.0f, 30.0f, 30.0f));
+        repaint(layout::i(layout::gate.getRight() - 42.0f, layout::gate.getY() + 250.0f, 32.0f, 32.0f));
     }
 
     const auto ir = processor.hasCabinetIR() ? processor.getCabinetIRName() : juce::String();
@@ -275,10 +275,10 @@ void MainPanel::paint(juce::Graphics& g)
     {
         const auto r = layout::gate;
         drawPanel(g, r, cyan, 13.0f);
-        g.setColour(ivory);
-        g.setFont(font(15.0f, true, 0.12f));
-        g.drawText("NOISE GATE", r.getX() + 14.0f, r.getY() + 14.0f, r.getWidth() - 50.0f, 24.0f, juce::Justification::centredLeft);
-        const juce::Point<float> led(r.getRight() - 25.0f, r.getY() + 27.0f);
+        drawRuneTitle(g, Rune::gate, "NOISE GATE", { r.getX(), r.getY() + 14.0f, r.getWidth(), 24.0f },
+                      font(14.0f, true, 0.1f), ivory, 20.0f);
+        // Gate-open lamp sits beside the GATE ON switch.
+        const juce::Point<float> led(r.getRight() - 26.0f, r.getY() + 266.0f);
         if (gateLed)
         {
             g.setColour(cyan.withAlpha(0.3f));
@@ -294,22 +294,31 @@ void MainPanel::paint(juce::Graphics& g)
     {
         const auto r = layout::amp;
         drawPanel(g, r, cyan, 22.0f);
-        for (int n = 0; n < 18; ++n)
-            drawRune(g, r.getX() + 52.0f + n * 60.0f, r.getY() + 16.0f, 24.0f, (n < 9 ? cyan : pink).withAlpha(0.22f));
+        // Rune band: the full set of section runes, shading from cyan to pink.
+        {
+            const Rune band[] = { Rune::gain, Rune::equalizer, Rune::presence, Rune::depth, Rune::power, Rune::gate,
+                                  Rune::octave, Rune::drive, Rune::delay, Rune::reverb, Rune::cabinet, Rune::output };
+            constexpr int count = 18;
+            const float step = (r.getWidth() - 120.0f) / (count - 1);
+            for (int n = 0; n < count; ++n)
+            {
+                const auto colour = cyan.interpolatedWith(pink, (float)n / (count - 1));
+                drawSectionRune(g, band[n % 12], { r.getX() + 48.0f + n * step, r.getY() + 15.0f, 26.0f, 26.0f }, 0.5f, colour);
+            }
+        }
         g.setColour(cyan.withAlpha(0.25f));
         g.drawLine(r.getX() + 24.0f, r.getY() + 50.0f, r.getRight() - 24.0f, r.getY() + 50.0f, 1.0f);
         g.drawLine(r.getX() + 24.0f, r.getY() + 266.0f, r.getRight() - 24.0f, r.getY() + 266.0f, 1.0f);
 
         // Section captions and dividers
-        g.setFont(font(11.0f, true, 0.3f));
-        auto caption = [&](float x0, float x1, const char* text, juce::Colour c)
+        auto caption = [&](float x0, float x1, Rune rune, const char* text, juce::Colour c)
         {
-            g.setColour(c.withAlpha(0.8f));
-            g.drawText(text, r.getX() + x0, r.getY() + 58.0f, x1 - x0, 16.0f, juce::Justification::centred);
+            drawRuneTitle(g, rune, text, { r.getX() + x0, r.getY() + 56.0f, x1 - x0, 20.0f },
+                          font(11.0f, true, 0.3f), c.withAlpha(0.85f), 18.0f);
         };
-        caption(layout::ampKnobX[0], layout::ampKnobX[0] + 130.0f, "PREAMP", cyan);
-        caption(layout::ampKnobX[1], layout::ampKnobX[3] + 130.0f, "EQUALIZER", blue);
-        caption(layout::ampKnobX[4], layout::ampKnobX[6] + 130.0f, "POWER", pink);
+        caption(layout::ampKnobX[0], layout::ampKnobX[0] + 130.0f, Rune::gain, "PREAMP", cyan);
+        caption(layout::ampKnobX[1], layout::ampKnobX[3] + 130.0f, Rune::equalizer, "EQUALIZER", blue);
+        caption(layout::ampKnobX[4], layout::ampKnobX[6] + 130.0f, Rune::power, "POWER", pink);
         g.setColour(juce::Colour(0xff26324a));
         for (float x : { 215.0f, 675.0f })
             g.drawLine(r.getX() + x, r.getY() + 66.0f, r.getX() + x, r.getY() + 250.0f, 1.0f);
@@ -327,9 +336,8 @@ void MainPanel::paint(juce::Graphics& g)
     {
         const auto r = layout::cab;
         drawPanel(g, r, pink, 13.0f);
-        g.setColour(ivory);
-        g.setFont(font(15.0f, true, 0.12f));
-        g.drawText("CABINET / IR", r.getX() + 10.0f, r.getY() + 14.0f, r.getWidth() - 20.0f, 24.0f, juce::Justification::centred);
+        drawRuneTitle(g, Rune::cabinet, "CABINET / IR", { r.getX(), r.getY() + 14.0f, r.getWidth(), 24.0f },
+                      font(14.0f, true, 0.1f), ivory, 20.0f);
         const juce::Rectangle<float> screen(r.getX() + 16.0f, r.getY() + 46.0f, r.getWidth() - 32.0f, 58.0f);
         g.setColour(juce::Colour(0xff05070f));
         g.fillRoundedRectangle(screen, 6.0f);
@@ -351,14 +359,14 @@ void MainPanel::paint(juce::Graphics& g)
         const auto r = layout::pedals[n];
         const auto a = layout::pedalAccent[n];
         drawPanel(g, r, a, 17.0f);
-        g.setColour(a);
-        g.setFont(font(24.0f, true, 0.18f));
-        g.drawText(layout::pedalTitles[n], r.getX(), r.getY() + 16.0f, r.getWidth(), 32.0f, juce::Justification::centred);
+        const Rune pedalRunes[] = { Rune::octave, Rune::drive, Rune::delay, Rune::reverb };
+        drawRuneTitle(g, pedalRunes[n], layout::pedalTitles[n], { r.getX(), r.getY() + 16.0f, r.getWidth(), 32.0f },
+                      font(24.0f, true, 0.18f), a, 30.0f);
         g.setColour(muted);
         g.setFont(font(9.5f, true, 0.25f));
         g.drawText(layout::pedalTaglines[n], r.getX(), r.getY() + 48.0f, r.getWidth(), 14.0f, juce::Justification::centred);
-        drawRune(g, r.getX() + 24.0f, r.getBottom() - 70.0f, 36.0f, a.withAlpha(0.3f));
-        drawRune(g, r.getRight() - 60.0f, r.getBottom() - 70.0f, 36.0f, a.withAlpha(0.3f));
+        drawSectionRune(g, pedalRunes[n], { r.getX() + 24.0f, r.getBottom() - 72.0f, 38.0f, 38.0f }, 0.35f, a);
+        drawSectionRune(g, pedalRunes[n], { r.getRight() - 62.0f, r.getBottom() - 72.0f, 38.0f, 38.0f }, 0.35f, a);
         for (auto pt : { r.getTopLeft().translated(16.0f, 16.0f), r.getTopRight().translated(-16.0f, 16.0f),
                          r.getBottomLeft().translated(16.0f, -16.0f), r.getBottomRight().translated(-16.0f, -16.0f) })
             drawScrew(g, pt, 5.0f, a);
@@ -378,9 +386,8 @@ void MainPanel::paint(juce::Graphics& g)
     {
         const auto r = layout::output;
         drawPanel(g, r, pink, 15.0f);
-        g.setColour(ivory);
-        g.setFont(font(20.0f, true, 0.2f));
-        g.drawText("OUTPUT", r.getX(), r.getY() + 16.0f, r.getWidth() - 40.0f, 30.0f, juce::Justification::centred);
+        drawRuneTitle(g, Rune::output, "OUTPUT", { r.getX(), r.getY() + 16.0f, r.getWidth() - 40.0f, 30.0f },
+                      font(20.0f, true, 0.2f), ivory, 24.0f);
         g.setColour(muted);
         g.setFont(font(9.5f, true, 0.25f));
         g.drawText(juce::String::fromUTF8("STEREO  \xc2\xb7  4x OVERSAMPLED"), r.getX(), r.getBottom() - 52.0f, r.getWidth() - 40.0f, 14.0f,
@@ -416,7 +423,7 @@ void MainPanel::resized()
         const auto r = layout::gate;
         gateThreshold.setBounds(i(r.getX() + 25.0f, r.getY() + 42.0f, 120.0f, 104.0f));
         gateRelease.setBounds(i(r.getX() + 25.0f, r.getY() + 146.0f, 120.0f, 104.0f));
-        gateOn.setBounds(i(r.getX() + 24.0f, r.getY() + 254.0f, 130.0f, 24.0f));
+        gateOn.setBounds(i(r.getX() + 24.0f, r.getY() + 254.0f, 108.0f, 24.0f));
         gatePost.setBounds(i(r.getX() + 24.0f, r.getY() + 282.0f, 130.0f, 24.0f));
     }
 
