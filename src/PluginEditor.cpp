@@ -49,7 +49,7 @@ MainPanel::MainPanel(MageAudioProcessor& p)
     for (juce::Component* c : std::initializer_list<juce::Component*> {
              &prevPreset, &presetBox, &nextPreset, &savePreset, &deletePreset, &undoButton, &redoButton,
              &inMeter, &outMeter, &outMeterTall,
-             &gain, &bass, &mid, &treble, &presence, &depth, &master,
+             &frieze, &gain, &bass, &mid, &treble, &presence, &depth, &master,
              &gateThreshold, &gateRelease, &gateOn, &gatePost,
              &lowCut, &highCut, &loadIR, &bypassIR,
              &octaveMix, &octaveTone, &octaveLevel, &octaveDown,
@@ -294,26 +294,15 @@ void MainPanel::paint(juce::Graphics& g)
     {
         const auto r = layout::amp;
         drawPanel(g, r, cyan, 22.0f);
-        // Rune band: the full set of section runes, shading from cyan to pink.
-        {
-            const Rune band[] = { Rune::gain, Rune::equalizer, Rune::presence, Rune::depth, Rune::power, Rune::gate,
-                                  Rune::octave, Rune::drive, Rune::delay, Rune::reverb, Rune::cabinet, Rune::output };
-            constexpr int count = 18;
-            const float step = (r.getWidth() - 120.0f) / (count - 1);
-            for (int n = 0; n < count; ++n)
-            {
-                const auto colour = cyan.interpolatedWith(pink, (float)n / (count - 1));
-                drawSectionRune(g, band[n % 12], { r.getX() + 48.0f + n * step, r.getY() + 15.0f, 26.0f, 26.0f }, 0.5f, colour);
-            }
-        }
+        // The animated magic frieze (a child component) fills the band above this line.
         g.setColour(cyan.withAlpha(0.25f));
-        g.drawLine(r.getX() + 24.0f, r.getY() + 50.0f, r.getRight() - 24.0f, r.getY() + 50.0f, 1.0f);
+        g.drawLine(r.getX() + 24.0f, r.getY() + 54.0f, r.getRight() - 24.0f, r.getY() + 54.0f, 1.0f);
         g.drawLine(r.getX() + 24.0f, r.getY() + 266.0f, r.getRight() - 24.0f, r.getY() + 266.0f, 1.0f);
 
         // Section captions and dividers
         auto caption = [&](float x0, float x1, Rune rune, const char* text, juce::Colour c)
         {
-            drawRuneTitle(g, rune, text, { r.getX() + x0, r.getY() + 56.0f, x1 - x0, 20.0f },
+            drawRuneTitle(g, rune, text, { r.getX() + x0, r.getY() + 58.0f, x1 - x0, 20.0f },
                           font(11.0f, true, 0.3f), c.withAlpha(0.85f), 18.0f);
         };
         caption(layout::ampKnobX[0], layout::ampKnobX[0] + 130.0f, Rune::gain, "PREAMP", cyan);
@@ -413,6 +402,7 @@ void MainPanel::resized()
     // Amp
     {
         const auto r = layout::amp;
+        frieze.setBounds(i(r.getX() + 44.0f, r.getY() + 9.0f, r.getWidth() - 88.0f, 42.0f));
         Knob* knobs[] = { &gain, &bass, &mid, &treble, &presence, &depth, &master };
         for (int n = 0; n < 7; ++n)
             knobs[n]->setBounds(i(r.getX() + layout::ampKnobX[n], r.getY() + 80.0f, 130.0f, 172.0f));

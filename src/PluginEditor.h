@@ -51,6 +51,7 @@ private:
                          outMeterTall { true, mage::ui::colours::violet, mage::ui::colours::pink };
 
     // Amp
+    mage::ui::MagicFrieze frieze;
     Knob gain, bass, mid, treble, presence, depth, master;
     // Gate
     Knob gateThreshold, gateRelease;

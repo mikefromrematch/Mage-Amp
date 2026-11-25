@@ -109,6 +109,18 @@ private:
     int holdFrames = 0;
 };
 
+// Animated frieze for the top of the amp head: two flowing waves carrying
+// magical silhouettes (wands, swords, cats, bats, wisps) and twinkling sparkles.
+class MagicFrieze final : public juce::Component, private juce::Timer
+{
+public:
+    MagicFrieze();
+    void paint(juce::Graphics&) override;
+private:
+    void timerCallback() override;
+    float phase = 0.0f;
+};
+
 // Small vector-icon button (no font glyph dependency).
 class IconButton final : public juce::Button
 {
