@@ -1,5 +1,8 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
+#if JucePlugin_Build_Standalone
+ #include <juce_audio_plugin_client/Standalone/juce_StandaloneFilterWindow.h>
+#endif
 
 using namespace mage::ui;
 using namespace mage::ui::colours;
@@ -910,6 +913,19 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
     const int w = juce::jlimit(960, 2560, savedWidth);
     setSize(w, juce::roundToInt(w * (double)MainPanel::designHeight / MainPanel::designWidth));
     startTimerHz(30);
+
+   #if JucePlugin_Build_Standalone
+    // JUCE's standalone app mutes the input by default to avoid speaker feedback, which
+    // just looks like a dead input on a guitar amp. Unmute it once; after that the
+    // "Mute audio input" choice in Settings is remembered as usual.
+    if (p.wrapperType == juce::AudioProcessor::wrapperType_Standalone)
+        if (auto* holder = juce::StandalonePluginHolder::getInstance())
+            if (holder->settings != nullptr && !holder->settings->getBoolValue("mageInputUnmuted", false))
+            {
+                holder->getMuteInputValue().setValue(false);
+                holder->settings->setValue("mageInputUnmuted", true);
+            }
+   #endif
 }
 
 void MageAudioProcessorEditor::paint(juce::Graphics& g)

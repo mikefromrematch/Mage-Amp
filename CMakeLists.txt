@@ -27,6 +27,10 @@ juce_add_plugin(MAGE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
+    # Standalone app: macOS gives silence from every audio input (interfaces included)
+    # unless the app declares why it needs the input.
+    MICROPHONE_PERMISSION_ENABLED TRUE
+    MICROPHONE_PERMISSION_TEXT "MAGE needs audio input access so you can play your guitar through it."
 )
 
 juce_generate_juce_header(MAGE)
