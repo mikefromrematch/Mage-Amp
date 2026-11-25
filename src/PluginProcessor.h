@@ -3,6 +3,7 @@
 #include "dsp/AmpDSP.h"
 #include "PresetManager.h"
 #include "MidiLearn.h"
+#include "Pedals.h"
 
 class MageAudioProcessor final : public juce::AudioProcessor
 {
@@ -55,6 +56,12 @@ private:
     std::unique_ptr<Params> p;
 
     void updateFilters(bool force);
+    // Pedalboard: run one pedal in place (R == nullptr means mono), with a short
+    // crossfade when it's switched on or off.
+    void runPedal(int type, float* L, float* R, int n);
+    void processPedal(mage::Pedal, float* L, float* R, int n);
+    void processFreeze(float* L, float* R, int n);
+    void resetPedalState(int type);
 
     using Biquad = mage::dsp::Biquad;
     static constexpr int oversamplingOrder = 2; // 2^2 = 4x
@@ -76,9 +83,19 @@ private:
     mage::dsp::CleanPreamp cleanPreamp;             // Fae channel (oversampled)
     Biquad cleanPresence, cleanDepth;
     mage::dsp::DCBlocker cleanPowerDC;
-    mage::dsp::FreezePedal freeze;                  // Fae pedals (base rate)
+    mage::dsp::FreezePedal freeze;                  // base rate
     mage::dsp::ShimmerReverb shimmer;
-    bool shimmerWasEnabled = false;
+    mage::dsp::Phaser phaser;
+    mage::dsp::ChorusVibrato chorus;
+    mage::dsp::Compressor compressor;               // front of the chain
+    // The drive pedal can sit anywhere on the board, so it has its own 4x oversampling.
+    juce::dsp::Oversampling<float> driveOversampler { 1, oversamplingOrder,
+        juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false };
+    juce::AudioBuffer<float> scratch;               // dry L, dry R, mono mid
+    std::array<juce::SmoothedValue<float>, mage::numPedals> pedalOn;
+    std::array<int, mage::numPedals> placement {};  // 0 = off the board, 1 = before the amp, 2 = after
+    std::array<bool, mage::numPedals> pedalWasOn {};
+    juce::SmoothedValue<float> compOnS;
     mage::dsp::CabSim cabSim;
     Biquad lowCut1, lowCut2, highCut1, highCut2;     // base rate
     juce::dsp::Convolution cabinetIR;
@@ -88,7 +105,6 @@ private:
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> delay { 96000 };
     mage::dsp::OnePole delayDamp[2];
     juce::dsp::Reverb reverb;
-    bool delayWasEnabled = false, reverbWasEnabled = false;
 
     juce::SmoothedValue<float> stage1Gain, stage2Gain, powerDrive;      // oversampled rate
     juce::SmoothedValue<float> channelMix, cleanGain, cleanPower, cleanMakeup;      // oversampled rate

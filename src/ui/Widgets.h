@@ -51,7 +51,7 @@ void drawScrew(juce::Graphics&, juce::Point<float> centre, float radius, juce::C
 
 // The MAGE section runes (one per part of the amp), drawn on a 48-unit grid.
 enum class Rune { gain, equalizer, presence, depth, power, gate, octave, drive, delay, reverb, cabinet, output,
-                  shimmer, freeze };
+                  shimmer, freeze, phaser, chorus, compressor };
 // Full-colour rune in `area` (kept square). With `mono` set, every stroke uses that colour instead.
 void drawSectionRune(juce::Graphics&, Rune, juce::Rectangle<float> area, float alpha = 1.0f,
                      juce::Colour mono = {});
@@ -180,6 +180,36 @@ public:
 private:
     int channel = 0;
     std::unique_ptr<juce::ParameterAttachment> attachment;
+};
+
+// Marker in a gap between two pedal slots showing where the amp sits in the chain.
+// The active one draws an AMP medallion; the others show a ghost on hover and move
+// the amp there when clicked.
+class AmpMarker final : public juce::Component, public juce::SettableTooltipClient
+{
+public:
+    AmpMarker();
+    void setActive(bool);
+    void paint(juce::Graphics&) override;
+    void mouseEnter(const juce::MouseEvent&) override { repaint(); }
+    void mouseExit(const juce::MouseEvent&) override  { repaint(); }
+    void mouseDown(const juce::MouseEvent&) override;
+    std::function<void()> onClick;
+private:
+    bool active = false;
+};
+
+// Invisible click target over a pedal's title that opens the pedal picker.
+class SlotTitle final : public juce::Component, public juce::SettableTooltipClient
+{
+public:
+    SlotTitle();
+    void paint(juce::Graphics&) override;
+    void mouseEnter(const juce::MouseEvent&) override { repaint(); }
+    void mouseExit(const juce::MouseEvent&) override  { repaint(); }
+    void mouseDown(const juce::MouseEvent&) override  { if (onClick) onClick(); }
+    std::function<void()> onClick;
+    juce::Colour accent;
 };
 
 // The brush mark and wordmark, tinted with the theme's gradient at paint time.

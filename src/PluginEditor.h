@@ -36,7 +36,12 @@ private:
     void savePresetDialog();
     void chooseCabinetIR();
     void updateDelayTimeVisibility(bool sync);
-    void setChannel(bool fae);   // swaps pedals and theme
+    void setChannel(bool fae);   // swaps the pedalboard and theme
+    void layoutPedals();         // places each slot's pedal, hides the rest
+    int boardSlot(int slot) const;   // pedal type in a slot of the current channel's board
+    int ampPosition() const;
+    void setBoardParam(const juce::String& paramID, int value);
+    void showSlotMenu(int slot);
     void applyTheme();
     juce::Colour pedalAccent(int slot) const;
     void showMidiMenu(juce::Component& control, const juce::String& paramID);
@@ -87,6 +92,28 @@ private:
     Knob freezeMix, freezeFade, freezeTone;
     LedToggle freezeMomentary;
     Footswitch shimmerSwitch, freezeSwitch;
+    // Phaser and chorus / vibrato
+    Knob phaserRate, phaserDepth, phaserFeedback, phaserMix;
+    LedToggle phaserStages;
+    Knob chorusRate, chorusDepth, chorusTone, chorusMix;
+    LedToggle chorusVibrato;
+    Footswitch phaserSwitch, chorusSwitch;
+    // Compressor (input column)
+    Knob compSustain, compLevel;
+    LedToggle compOn, compParallel;
+
+    // Pedalboard: the controls belonging to each pedal type, the clickable titles and
+    // the amp markers in the gaps between slots.
+    struct PedalView
+    {
+        std::vector<Knob*> knobs;
+        LedToggle* toggle = nullptr;
+        Footswitch* footswitch = nullptr;
+    };
+    std::array<PedalView, mage::numPedals> pedalViews;
+    std::array<mage::ui::SlotTitle, mage::numSlots> slotTitles;
+    std::array<mage::ui::AmpMarker, mage::numSlots + 1> ampMarkers;
+    std::vector<std::unique_ptr<juce::ParameterAttachment>> boardWatchers;
 
     const mage::ui::Theme* theme = &mage::ui::arcaneTheme();
     bool faeChannel = false;

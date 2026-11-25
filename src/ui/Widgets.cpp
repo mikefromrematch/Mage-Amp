@@ -204,7 +204,7 @@ namespace
             return RuneElement { juce::Drawable::parseSVGPath(d), colour, alpha, kind };
         };
 
-        static const std::array<std::vector<RuneElement>, 14> table {{
+        static const std::array<std::vector<RuneElement>, 17> table {{
             // gain: flame
             { e("M24 5 L33 22 L28 24 L34 34 L24 43 L14 34 L20 24 L15 22 Z", C),
               e("M24 26 L28 33 L24 37 L20 33 Z", P, K::fill) },
@@ -257,6 +257,18 @@ namespace
             { e("M24 5 L40.5 14.5 L40.5 33.5 L24 43 L7.5 33.5 L7.5 14.5 Z", C),
               e("M24 11 L24 37 M12.7 17.5 L35.3 30.5 M12.7 30.5 L35.3 17.5", B, K::stroke, 0.75f),
               e(circle(24, 24, 2.4f), I, K::fill) },
+            // phaser: two sweeps crossing
+            { e("M5 24 C12 9 18 9 24 24 S36 39 43 24", V),
+              e("M5 24 C12 39 18 39 24 24 S36 9 43 24", P, K::stroke, 0.7f),
+              e(circle(24, 24, 2.4f), I, K::fill) },
+            // chorus: three voices
+            { e(circle(17, 19, 9), C),
+              e(circle(31, 19, 9), V, K::stroke, 0.85f),
+              e(circle(24, 31, 9), P, K::stroke, 0.7f) },
+            // compressor: pressed together
+            { e("M24 5 L24 17 M18 11 L24 17 L30 11", C),
+              e("M24 43 L24 31 M18 37 L24 31 L30 37", C),
+              e("M9 24 L39 24", P) },
         }};
         return table[static_cast<size_t>(rune)];
     }
@@ -1233,5 +1245,79 @@ void IconButton::paintButton(juce::Graphics& g, bool highlighted, bool down)
     }
     g.setColour(isEnabled() ? ivory.withAlpha(0.85f) : muted.withAlpha(0.3f));
     g.strokePath(p, juce::PathStrokeType(s, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+}
+// ---------------------------------------------------------------------------
+AmpMarker::AmpMarker()
+{
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+}
+
+void AmpMarker::setActive(bool a)
+{
+    active = a;
+    setTooltip(active ? "The amp. Pedals to the left feed the amp; pedals to the right run after it, "
+                        "like an effects loop. Click another gap to move it."
+                      : "Move the amp here");
+    repaint();
+}
+
+void AmpMarker::mouseDown(const juce::MouseEvent& e)
+{
+    if (!e.mods.isPopupMenu() && !active && onClick)
+        onClick();
+}
+
+void AmpMarker::paint(juce::Graphics& g)
+{
+    useThemeOf(*this);
+    const auto& t = currentTheme();
+    const auto r = getLocalBounds().toFloat().reduced(2.0f);
+    const bool hover = isMouseOver();
+    if (!active && !hover)
+        return;
+    if (active)
+    {
+        g.setColour(t.glow.withAlpha(0.35f));
+        g.fillEllipse(r);
+        const auto disc = r.reduced(3.0f);
+        g.setColour(t.header);
+        g.fillEllipse(disc);
+        juce::ColourGradient ring(cyan, disc.getX(), disc.getY(), pink, disc.getRight(), disc.getBottom(), false);
+        g.setGradientFill(ring);
+        g.drawEllipse(disc, 2.0f);
+        g.setColour(ivory);
+    }
+    else
+    {
+        const auto disc = r.reduced(4.0f);
+        juce::Path p;
+        p.addEllipse(disc);
+        juce::Path dashed;
+        const float dashes[] = { 3.0f, 3.0f };
+        juce::PathStrokeType(1.2f).createDashedStroke(dashed, p, dashes, 2);
+        g.setColour(t.header.withAlpha(0.85f));
+        g.fillEllipse(disc);
+        g.setColour(ivory.withAlpha(0.6f));
+        g.fillPath(dashed);
+        g.setColour(ivory.withAlpha(0.6f));
+    }
+    g.setFont(font(10.0f, true, 0.1f));
+    g.drawText("AMP", r, juce::Justification::centred, false);
+}
+
+SlotTitle::SlotTitle()
+{
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    setTooltip("Click to choose the pedal for this slot");
+}
+
+void SlotTitle::paint(juce::Graphics& g)
+{
+    if (!isMouseOver())
+        return;
+    g.setColour(accent.withAlpha(0.10f));
+    g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 10.0f);
+    g.setColour(accent.withAlpha(0.35f));
+    g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 10.0f, 1.0f);
 }
 } // namespace mage::ui

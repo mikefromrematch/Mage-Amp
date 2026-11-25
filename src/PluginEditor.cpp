@@ -7,18 +7,25 @@ using namespace mage::ui::colours;
 namespace layout
 {
     using R = juce::Rectangle<float>;
-    const R gate   { 20.0f, 148.0f, 170.0f, 322.0f };
+    const R gate   { 20.0f, 148.0f, 170.0f, 158.0f };
+    const R comp   { 20.0f, 318.0f, 170.0f, 152.0f };
     const R amp    { 210.0f, 148.0f, 1180.0f, 322.0f };
     const R cab    { 1410.0f, 148.0f, 170.0f, 322.0f };
     const R pedals[] = { { 20.0f, 492.0f, 300.0f, 388.0f }, { 340.0f, 492.0f, 300.0f, 388.0f },
                          { 660.0f, 492.0f, 300.0f, 388.0f }, { 980.0f, 492.0f, 300.0f, 388.0f } };
     const R output { 1300.0f, 492.0f, 280.0f, 388.0f };
-    const char* pedalTitles[2][4] = { { "OCTAVE", "DRIVE", "DELAY", "REVERB" },
-                                      { "SHIMMER", "FREEZE", "DELAY", "REVERB" } };
-    const char* pedalTaglines[2][4] = { { "SUB / UPPER OCTAVE", "MID-FOCUSED OVERDRIVE", "WARM ANALOG ECHO", "ETHEREAL SPACE" },
-                                        { "OCTAVE-UP HALO", "INFINITE SUSTAIN", "MOONLIT ECHO", "FAERIE GLADE" } };
-    const Rune pedalRunes[2][4] = { { Rune::octave, Rune::drive, Rune::delay, Rune::reverb },
-                                    { Rune::shimmer, Rune::freeze, Rune::delay, Rune::reverb } };
+    // Indexed by mage::Pedal.
+    const char* pedalTitles[mage::numPedals] = { "OCTAVE", "DRIVE", "SHIMMER", "FREEZE", "PHASER", "CHORUS", "DELAY", "REVERB" };
+    const char* pedalTaglines[2][mage::numPedals] = {
+        { "SUB / UPPER OCTAVE", "MID-FOCUSED OVERDRIVE", "OCTAVE-UP HALO", "INFINITE SUSTAIN",
+          "ARCANE VORTEX", "SPECTRAL DOUBLING", "WARM ANALOG ECHO", "ETHEREAL SPACE" },
+        { "SUB / UPPER OCTAVE", "MID-FOCUSED OVERDRIVE", "OCTAVE-UP HALO", "INFINITE SUSTAIN",
+          "MOONTIDE SWEEP", "FAERIE CHORUS", "MOONLIT ECHO", "FAERIE GLADE" } };
+    const Rune pedalRunes[mage::numPedals] = { Rune::octave, Rune::drive, Rune::shimmer, Rune::freeze,
+                                               Rune::phaser, Rune::chorus, Rune::delay, Rune::reverb };
+    // x centre of each gap an amp marker can sit in (before slot 0 ... after slot 3).
+    const float ampGapX[] = { 20.0f, 330.0f, 650.0f, 970.0f, 1290.0f };
+    constexpr float cableY = 492.0f + 187.5f;
     const float ampKnobX[] = { 65.0f, 245.0f, 385.0f, 525.0f, 705.0f, 845.0f, 985.0f };
 
     juce::Rectangle<int> i(float x, float y, float w, float h) { return R(x, y, w, h).toNearestInt(); }
@@ -31,7 +38,7 @@ MainPanel::MainPanel(MageAudioProcessor& p)
       treble(p.state, "treble", "TREBLE"), presence(p.state, "presence", "PRESENCE"),
       depth(p.state, "depth", "DEPTH"), master(p.state, "master", "MASTER"),
       gateThreshold(p.state, "gate", "THRESHOLD", cyan), gateRelease(p.state, "gateDecay", "RELEASE", cyan),
-      gateOn(p.state, "gateEnabled", "GATE ON", cyan), gatePost(p.state, "gatePost", "POST AMP", cyan),
+      gateOn(p.state, "gateEnabled", "ON", cyan), gatePost(p.state, "gatePost", "POST", cyan),
       lowCut(p.state, "lowCut", "LOW CUT", pink), highCut(p.state, "highCut", "HIGH CUT", pink),
       octaveMix(p.state, "octaveMix", "MIX", violet), octaveTone(p.state, "octaveTone", "TONE", violet),
       octaveLevel(p.state, "octaveLevel", "LEVEL", violet),
@@ -53,7 +60,16 @@ MainPanel::MainPanel(MageAudioProcessor& p)
       freezeMix(p.state, "freezeMix", "MIX", cyan), freezeFade(p.state, "freezeFade", "FADE", cyan),
       freezeTone(p.state, "freezeTone", "TONE", cyan),
       freezeMomentary(p.state, "freezeMomentary", "MOMENTARY", cyan),
-      shimmerSwitch(p.state, "shimmerEnabled", violet), freezeSwitch(p.state, "freezeEnabled", cyan)
+      shimmerSwitch(p.state, "shimmerEnabled", violet), freezeSwitch(p.state, "freezeEnabled", cyan),
+      phaserRate(p.state, "phaserRate", "RATE"), phaserDepth(p.state, "phaserDepth", "DEPTH"),
+      phaserFeedback(p.state, "phaserFeedback", "RESO"), phaserMix(p.state, "phaserMix", "MIX"),
+      phaserStages(p.state, "phaserStages", "8-STAGE", violet),
+      chorusRate(p.state, "chorusRate", "RATE"), chorusDepth(p.state, "chorusDepth", "DEPTH"),
+      chorusTone(p.state, "chorusTone", "TONE"), chorusMix(p.state, "chorusMix", "MIX"),
+      chorusVibrato(p.state, "chorusVibrato", "VIBRATO", violet),
+      phaserSwitch(p.state, "phaserEnabled", violet), chorusSwitch(p.state, "chorusEnabled", violet),
+      compSustain(p.state, "compSustain", "SUSTAIN", violet), compLevel(p.state, "compLevel", "LEVEL", violet),
+      compOn(p.state, "compEnabled", "ON", violet), compParallel(p.state, "compParallel", "BLEND", violet)
 {
     setLookAndFeel(&lnf);
     setSize(designWidth, designHeight);
@@ -70,8 +86,48 @@ MainPanel::MainPanel(MageAudioProcessor& p)
              &reverbDecay, &reverbSize, &reverbTone, &reverbMix,
              &octaveSwitch, &driveSwitch, &delaySwitch, &reverbSwitch, &output,
              &channelSwitch, &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone, &shimmerFifth,
-             &freezeMix, &freezeFade, &freezeTone, &freezeMomentary, &shimmerSwitch, &freezeSwitch })
+             &freezeMix, &freezeFade, &freezeTone, &freezeMomentary, &shimmerSwitch, &freezeSwitch,
+             &phaserRate, &phaserDepth, &phaserFeedback, &phaserMix, &phaserStages, &phaserSwitch,
+             &chorusRate, &chorusDepth, &chorusTone, &chorusMix, &chorusVibrato, &chorusSwitch,
+             &compSustain, &compLevel, &compOn, &compParallel })
         addAndMakeVisible(c);
+
+    // --- Pedalboard ---
+    pedalViews = { {
+        { { &octaveMix, &octaveTone, &octaveLevel }, &octaveDown, &octaveSwitch },
+        { { &drive, &driveTone, &driveLevel }, &driveBoost, &driveSwitch },
+        { { &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone }, &shimmerFifth, &shimmerSwitch },
+        { { &freezeMix, &freezeFade, &freezeTone }, &freezeMomentary, &freezeSwitch },
+        { { &phaserRate, &phaserDepth, &phaserFeedback, &phaserMix }, &phaserStages, &phaserSwitch },
+        { { &chorusRate, &chorusDepth, &chorusTone, &chorusMix }, &chorusVibrato, &chorusSwitch },
+        { { &delayTime, &delayFeedback, &delayMix }, &delaySync, &delaySwitch },
+        { { &reverbDecay, &reverbSize, &reverbTone, &reverbMix }, nullptr, &reverbSwitch } } };
+    for (int s = 0; s < mage::numSlots; ++s)
+    {
+        addAndMakeVisible(slotTitles[(size_t)s]);
+        slotTitles[(size_t)s].onClick = [this, s] { showSlotMenu(s); };
+    }
+    for (int g = 0; g <= mage::numSlots; ++g)
+    {
+        addAndMakeVisible(ampMarkers[(size_t)g]);
+        ampMarkers[(size_t)g].onClick = [this, g] { setBoardParam(mage::ampPosParamID(faeChannel ? 1 : 0), g); };
+    }
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        juce::StringArray ids { mage::ampPosParamID(ch) };
+        for (int s = 0; s < mage::numSlots; ++s)
+            ids.add(mage::slotParamID(ch, s));
+        for (const auto& id : ids)
+            if (auto* param = p.state.getParameter(id))
+                boardWatchers.push_back(std::make_unique<juce::ParameterAttachment>(*param,
+                    [this](float) { layoutPedals(); applyTheme(); }, nullptr));
+    }
+    phaserStages.setTooltip("Eight all-pass stages for a deeper, more dramatic sweep");
+    chorusVibrato.setTooltip("Pure pitch vibrato instead of chorus (turn MIX up for the full effect)");
+    compParallel.setTooltip("Blend the compressed signal with the dry one to keep your pick attack");
+    gateOn.setTooltip("Noise gate on/off");
+    gatePost.setTooltip("Gate after the amp instead of before it");
+    compOn.setTooltip("Compressor on/off");
 
     // --- MIDI Learn: right-click any of these to map it to a MIDI CC ---
     learnables = {
@@ -88,7 +144,13 @@ MainPanel::MainPanel(MageAudioProcessor& p)
         { &channelSwitch, "ampChannel" }, { &shimmerMix, "shimmerMix" }, { &shimmerDecay, "shimmerDecay" },
         { &shimmerAmount, "shimmerAmount" }, { &shimmerTone, "shimmerTone" }, { &shimmerFifth, "shimmerFifth" },
         { &freezeMix, "freezeMix" }, { &freezeFade, "freezeFade" }, { &freezeTone, "freezeTone" },
-        { &freezeMomentary, "freezeMomentary" }, { &shimmerSwitch, "shimmerEnabled" }, { &freezeSwitch, "freezeEnabled" } };
+        { &freezeMomentary, "freezeMomentary" }, { &shimmerSwitch, "shimmerEnabled" }, { &freezeSwitch, "freezeEnabled" },
+        { &phaserRate, "phaserRate" }, { &phaserDepth, "phaserDepth" }, { &phaserFeedback, "phaserFeedback" },
+        { &phaserMix, "phaserMix" }, { &phaserStages, "phaserStages" }, { &phaserSwitch, "phaserEnabled" },
+        { &chorusRate, "chorusRate" }, { &chorusDepth, "chorusDepth" }, { &chorusTone, "chorusTone" },
+        { &chorusMix, "chorusMix" }, { &chorusVibrato, "chorusVibrato" }, { &chorusSwitch, "chorusEnabled" },
+        { &compSustain, "compSustain" }, { &compLevel, "compLevel" }, { &compOn, "compEnabled" },
+        { &compParallel, "compParallel" } };
     for (auto& [control, id] : learnables)
         control->addMouseListener(this, true);
 
@@ -161,10 +223,126 @@ MainPanel::~MainPanel()
     setLookAndFeel(nullptr);
 }
 
-void MainPanel::updateDelayTimeVisibility(bool sync)
+void MainPanel::updateDelayTimeVisibility(bool)
 {
-    delayTime.setVisible(!sync);
-    delayDivision.setVisible(sync);
+    layoutPedals();
+}
+
+int MainPanel::boardSlot(int slot) const
+{
+    const auto* v = processor.state.getRawParameterValue(mage::slotParamID(faeChannel ? 1 : 0, slot));
+    return juce::jlimit(0, mage::numPedals - 1, juce::roundToInt(v->load()));
+}
+
+int MainPanel::ampPosition() const
+{
+    const auto* v = processor.state.getRawParameterValue(mage::ampPosParamID(faeChannel ? 1 : 0));
+    return juce::jlimit(0, mage::numSlots, juce::roundToInt(v->load()));
+}
+
+void MainPanel::setBoardParam(const juce::String& paramID, int value)
+{
+    if (auto* param = processor.state.getParameter(paramID))
+    {
+        param->beginChangeGesture();
+        param->setValueNotifyingHost(param->convertTo0to1((float)value));
+        param->endChangeGesture();
+    }
+}
+
+void MainPanel::layoutPedals()
+{
+    if (pedalViews[0].footswitch == nullptr)
+        return;   // resized() runs from setSize() before the board is set up
+    for (auto& view : pedalViews)
+    {
+        for (auto* k : view.knobs) k->setVisible(false);
+        if (view.toggle != nullptr) view.toggle->setVisible(false);
+        view.footswitch->setVisible(false);
+    }
+    delayDivision.setVisible(false);
+
+    const bool sync = processor.state.getRawParameterValue("delaySync")->load() > 0.5f;
+    for (int s = 0; s < mage::numSlots; ++s)
+    {
+        const auto r = layout::pedals[s];
+        const int type = boardSlot(s);
+        auto& view = pedalViews[(size_t)type];
+
+        const float pad = view.knobs.size() > 3 ? 8.0f : 16.0f;
+        const float w = (r.getWidth() - pad * 2.0f) / (float)view.knobs.size();
+        float x = r.getX() + pad;
+        for (auto* k : view.knobs)
+        {
+            k->setBounds(layout::i(x, r.getY() + 102.0f, w, 126.0f));
+            k->setVisible(true);
+            x += w;
+        }
+        if (view.toggle != nullptr)
+        {
+            view.toggle->setBounds(layout::i(r.getCentreX() - 64.0f, r.getY() + 70.0f, 140.0f, 24.0f));
+            view.toggle->setVisible(true);
+        }
+        view.footswitch->setBounds(layout::i(r.getCentreX() - 42.0f, r.getY() + 244.0f, 84.0f, 112.0f));
+        view.footswitch->setVisible(true);
+        if (type == (int)mage::Pedal::delay)
+        {
+            delayDivision.setBounds(delayTime.getBounds());
+            delayTime.setVisible(!sync);
+            delayDivision.setVisible(sync);
+        }
+        slotTitles[(size_t)s].setBounds(layout::i(r.getX() + 24.0f, r.getY() + 10.0f, r.getWidth() - 48.0f, 56.0f));
+    }
+    const int amp = ampPosition();
+    for (int g = 0; g <= mage::numSlots; ++g)
+    {
+        ampMarkers[(size_t)g].setBounds(layout::i(layout::ampGapX[g] - 21.0f, layout::cableY - 21.0f, 42.0f, 42.0f));
+        ampMarkers[(size_t)g].setActive(g == amp);
+    }
+    repaint(layout::i(0.0f, 480.0f, 1300.0f, 410.0f));
+}
+
+void MainPanel::showSlotMenu(int slot)
+{
+    const int ch = faeChannel ? 1 : 0;
+    const int current = boardSlot(slot);
+    auto slotOf = [this](int type) { for (int s = 0; s < mage::numSlots; ++s) if (boardSlot(s) == type) return s; return -1; };
+
+    juce::PopupMenu menu;
+    menu.addSectionHeader("SLOT " + juce::String(slot + 1));
+    for (int t = 0; t < mage::numPedals; ++t)
+    {
+        const int other = slotOf(t);
+        auto text = mage::pedalNames()[t];
+        if (other >= 0 && other != slot)
+            text << "   (swap with slot " << (other + 1) << ")";
+        menu.addItem(100 + t, text, true, t == current);
+    }
+    menu.addSeparator();
+    const int amp = ampPosition();
+    menu.addItem(200, "Amp before this pedal", true, amp == slot);
+    menu.addItem(201, "Amp after this pedal", true, amp == slot + 1);
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&slotTitles[(size_t)slot]),
+        [safe = juce::Component::SafePointer<MainPanel>(this), slot, ch, current, slotOf](int result)
+        {
+            if (safe == nullptr || result == 0)
+                return;
+            if (result >= 100 && result < 100 + mage::numPedals)
+            {
+                const int type = result - 100;
+                if (type == current)
+                    return;
+                const int other = slotOf(type);
+                safe->setBoardParam(mage::slotParamID(ch, slot), type);
+                if (other >= 0)
+                    safe->setBoardParam(mage::slotParamID(ch, other), current);
+            }
+            else if (result == 200 || result == 201)
+            {
+                safe->setBoardParam(mage::ampPosParamID(ch), slot + (result - 200));
+            }
+        });
 }
 
 juce::Colour MainPanel::pedalAccent(int slot) const
@@ -179,14 +357,7 @@ void MainPanel::setChannel(bool fae)
 {
     faeChannel = fae;
     theme = fae ? &faeTheme() : &arcaneTheme();
-    for (juce::Component* c : std::initializer_list<juce::Component*> {
-             &octaveMix, &octaveTone, &octaveLevel, &octaveDown, &octaveSwitch,
-             &drive, &driveTone, &driveLevel, &driveBoost, &driveSwitch })
-        c->setVisible(!fae);
-    for (juce::Component* c : std::initializer_list<juce::Component*> {
-             &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone, &shimmerFifth, &shimmerSwitch,
-             &freezeMix, &freezeFade, &freezeTone, &freezeMomentary, &freezeSwitch })
-        c->setVisible(fae);
+    layoutPedals();
     applyTheme();
 }
 
@@ -197,17 +368,19 @@ void MainPanel::applyTheme()
     for (auto* k : { &gateThreshold, &gateRelease }) k->setAccent(cyan);
     for (auto* t : { &gateOn, &gatePost }) t->setAccent(cyan);
     for (auto* k : { &lowCut, &highCut, &output }) k->setAccent(pink);
-    const auto a0 = pedalAccent(0), a1 = pedalAccent(1), a2 = pedalAccent(2), a3 = pedalAccent(3);
-    for (auto* k : { &octaveMix, &octaveTone, &octaveLevel, &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone }) k->setAccent(a0);
-    for (auto* k : { &drive, &driveTone, &driveLevel, &freezeMix, &freezeFade, &freezeTone }) k->setAccent(a1);
-    for (auto* k : { &delayTime, &delayDivision, &delayFeedback, &delayMix }) k->setAccent(a2);
-    for (auto* k : { &reverbDecay, &reverbSize, &reverbTone, &reverbMix }) k->setAccent(a3);
-    octaveDown.setAccent(a0); shimmerFifth.setAccent(a0);
-    driveBoost.setAccent(a1); freezeMomentary.setAccent(a1);
-    delaySync.setAccent(a2);
-    octaveSwitch.setAccent(a0); shimmerSwitch.setAccent(a0);
-    driveSwitch.setAccent(a1); freezeSwitch.setAccent(a1);
-    delaySwitch.setAccent(a2); reverbSwitch.setAccent(a3);
+    for (auto* k : { &compSustain, &compLevel }) k->setAccent(violet);
+    for (auto* t : { &compOn, &compParallel }) t->setAccent(violet);
+    // Pedal colours follow the slot, so the board always reads as the same rainbow.
+    for (int s = 0; s < mage::numSlots; ++s)
+    {
+        const auto a = pedalAccent(s);
+        auto& view = pedalViews[(size_t)boardSlot(s)];
+        for (auto* k : view.knobs) k->setAccent(a);
+        if (view.toggle != nullptr) view.toggle->setAccent(a);
+        view.footswitch->setAccent(a);
+        if (boardSlot(s) == (int)mage::Pedal::delay) delayDivision.setAccent(a);
+        slotTitles[(size_t)s].accent = a;
+    }
     inMeter.setColours(blue, cyan);
     outMeter.setColours(violet, pink);
     outMeterTall.setColours(violet, pink);
@@ -290,7 +463,7 @@ void MainPanel::refresh()
     if (const bool g = processor.gateIsOpen.load(); g != gateLed)
     {
         gateLed = g;
-        repaint(layout::i(layout::gate.getRight() - 42.0f, layout::gate.getY() + 250.0f, 32.0f, 32.0f));
+        repaint(layout::i(layout::gate.getRight() - 30.0f, layout::gate.getY() + 12.0f, 24.0f, 24.0f));
     }
 
     const auto ir = processor.hasCabinetIR() ? processor.getCabinetIRName() : juce::String();
@@ -519,10 +692,10 @@ void MainPanel::paint(juce::Graphics& g)
     {
         const auto r = layout::gate;
         drawPanel(g, r, cyan, 13.0f);
-        drawRuneTitle(g, Rune::gate, "NOISE GATE", { r.getX(), r.getY() + 14.0f, r.getWidth(), 24.0f },
-                      font(14.0f, true, 0.1f), ivory, 20.0f);
-        // Gate-open lamp sits beside the GATE ON switch.
-        const juce::Point<float> led(r.getRight() - 26.0f, r.getY() + 266.0f);
+        drawRuneTitle(g, Rune::gate, "NOISE GATE", { r.getX(), r.getY() + 12.0f, r.getWidth() - 22.0f, 24.0f },
+                      font(13.0f, true, 0.1f), ivory, 18.0f);
+        // Gate-open lamp in the top-right corner.
+        const juce::Point<float> led(r.getRight() - 18.0f, r.getY() + 24.0f);
         if (gateLed)
         {
             g.setColour(cyan.withAlpha(0.3f));
@@ -532,6 +705,14 @@ void MainPanel::paint(juce::Graphics& g)
         g.fillEllipse(led.x - 5.0f, led.y - 5.0f, 10.0f, 10.0f);
         g.setColour(gateLed ? cyan.brighter(0.5f) : muted.withAlpha(0.5f));
         g.drawEllipse(led.x - 7.0f, led.y - 7.0f, 14.0f, 14.0f, 1.2f);
+    }
+
+    // ---- Compressor ----
+    {
+        const auto r = layout::comp;
+        drawPanel(g, r, violet, 13.0f);
+        drawRuneTitle(g, Rune::compressor, "COMPRESSOR", { r.getX(), r.getY() + 12.0f, r.getWidth(), 24.0f },
+                      font(13.0f, true, 0.1f), ivory, 18.0f);
     }
 
     // ---- Amp head ----
@@ -595,13 +776,26 @@ void MainPanel::paint(juce::Graphics& g)
         const auto r = layout::pedals[n];
         const auto a = pedalAccent(n);
         const int ch = fae ? 1 : 0;
-        const Rune rune = layout::pedalRunes[ch][n];
+        const int type = boardSlot(n);
+        const Rune rune = layout::pedalRunes[type];
         drawPanel(g, r, a, 17.0f);
-        drawRuneTitle(g, rune, layout::pedalTitles[ch][n], { r.getX(), r.getY() + 16.0f, r.getWidth(), 32.0f },
-                      font(24.0f, true, 0.18f), a, 30.0f);
+        const auto titleFont = font(24.0f, true, 0.18f);
+        drawRuneTitle(g, rune, layout::pedalTitles[type], { r.getX(), r.getY() + 16.0f, r.getWidth(), 32.0f },
+                      titleFont, a, 30.0f);
+        // Chevron after the title: click the title to swap the pedal.
+        {
+            const float tw = 30.0f * 1.4f + juce::GlyphArrangement::getStringWidth(titleFont, layout::pedalTitles[type]);
+            const float cx = r.getCentreX() + tw * 0.5f + 12.0f, cy = r.getY() + 33.0f;
+            juce::Path chevron;
+            chevron.startNewSubPath(cx - 5.0f, cy - 2.5f);
+            chevron.lineTo(cx, cy + 2.5f);
+            chevron.lineTo(cx + 5.0f, cy - 2.5f);
+            g.setColour(a.withAlpha(0.7f));
+            g.strokePath(chevron, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        }
         g.setColour(muted);
         g.setFont(font(9.5f, true, 0.25f));
-        g.drawText(layout::pedalTaglines[ch][n], r.getX(), r.getY() + 48.0f, r.getWidth(), 14.0f, juce::Justification::centred);
+        g.drawText(layout::pedalTaglines[ch][type], r.getX(), r.getY() + 48.0f, r.getWidth(), 14.0f, juce::Justification::centred);
         drawSectionRune(g, rune, { r.getX() + 24.0f, r.getBottom() - 72.0f, 38.0f, 38.0f }, 0.35f, a);
         drawSectionRune(g, rune, { r.getRight() - 62.0f, r.getBottom() - 72.0f, 38.0f, 38.0f }, 0.35f, a);
         for (auto pt : { r.getTopLeft().translated(16.0f, 16.0f), r.getTopRight().translated(-16.0f, 16.0f),
@@ -611,7 +805,7 @@ void MainPanel::paint(juce::Graphics& g)
     // Patch cables between the pedals and into the output module
     for (float x : { 320.0f, 640.0f, 960.0f, 1280.0f })
     {
-        const juce::Rectangle<float> cable(x - 8.0f, 492.0f + 182.0f, 36.0f, 11.0f);
+        const juce::Rectangle<float> cable(x - 8.0f, layout::cableY - 5.5f, 36.0f, 11.0f);
         g.setColour(T.header);
         g.fillRoundedRectangle(cable.expanded(1.5f), 5.0f);
         juce::ColourGradient glow(cyan.withAlpha(0.9f), cable.getX(), 0.0f, pink.withAlpha(0.9f), cable.getRight(), 0.0f, false);
@@ -660,10 +854,19 @@ void MainPanel::resized()
     // Gate
     {
         const auto r = layout::gate;
-        gateThreshold.setBounds(i(r.getX() + 25.0f, r.getY() + 42.0f, 120.0f, 104.0f));
-        gateRelease.setBounds(i(r.getX() + 25.0f, r.getY() + 146.0f, 120.0f, 104.0f));
-        gateOn.setBounds(i(r.getX() + 24.0f, r.getY() + 254.0f, 108.0f, 24.0f));
-        gatePost.setBounds(i(r.getX() + 24.0f, r.getY() + 282.0f, 130.0f, 24.0f));
+        gateThreshold.setBounds(i(r.getX() + 10.0f, r.getY() + 36.0f, 75.0f, 84.0f));
+        gateRelease.setBounds(i(r.getX() + 85.0f, r.getY() + 36.0f, 75.0f, 84.0f));
+        gateOn.setBounds(i(r.getX() + 16.0f, r.getY() + 122.0f, 60.0f, 24.0f));
+        gatePost.setBounds(i(r.getX() + 86.0f, r.getY() + 122.0f, 80.0f, 24.0f));
+    }
+
+    // Compressor
+    {
+        const auto r = layout::comp;
+        compSustain.setBounds(i(r.getX() + 10.0f, r.getY() + 36.0f, 75.0f, 84.0f));
+        compLevel.setBounds(i(r.getX() + 85.0f, r.getY() + 36.0f, 75.0f, 84.0f));
+        compOn.setBounds(i(r.getX() + 16.0f, r.getY() + 120.0f, 60.0f, 24.0f));
+        compParallel.setBounds(i(r.getX() + 86.0f, r.getY() + 120.0f, 80.0f, 24.0f));
     }
 
     // Cabinet
@@ -676,48 +879,7 @@ void MainPanel::resized()
     }
 
     // Pedals
-    auto placeRow = [](juce::Rectangle<float> r, std::initializer_list<juce::Component*> comps)
-    {
-        const float pad = comps.size() > 3 ? 8.0f : 16.0f;
-        const float w = (r.getWidth() - pad * 2.0f) / (float)comps.size();
-        float x = r.getX() + pad;
-        for (auto* c : comps)
-        {
-            c->setBounds(layout::i(x, r.getY() + 102.0f, w, 126.0f));
-            x += w;
-        }
-    };
-    auto placeToggle = [](juce::Rectangle<float> r, juce::Component& t)
-    {
-        t.setBounds(layout::i(r.getCentreX() - 64.0f, r.getY() + 70.0f, 140.0f, 24.0f));
-    };
-    auto placeSwitch = [](juce::Rectangle<float> r, juce::Component& s)
-    {
-        s.setBounds(layout::i(r.getCentreX() - 42.0f, r.getY() + 244.0f, 84.0f, 112.0f));
-    };
-    placeRow(layout::pedals[0], { &octaveMix, &octaveTone, &octaveLevel });
-    placeToggle(layout::pedals[0], octaveDown);
-    placeSwitch(layout::pedals[0], octaveSwitch);
-
-    placeRow(layout::pedals[0], { &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone });
-    placeToggle(layout::pedals[0], shimmerFifth);
-    placeSwitch(layout::pedals[0], shimmerSwitch);
-
-    placeRow(layout::pedals[1], { &drive, &driveTone, &driveLevel });
-    placeToggle(layout::pedals[1], driveBoost);
-    placeSwitch(layout::pedals[1], driveSwitch);
-
-    placeRow(layout::pedals[1], { &freezeMix, &freezeFade, &freezeTone });
-    placeToggle(layout::pedals[1], freezeMomentary);
-    placeSwitch(layout::pedals[1], freezeSwitch);
-
-    placeRow(layout::pedals[2], { &delayTime, &delayFeedback, &delayMix });
-    delayDivision.setBounds(delayTime.getBounds());
-    placeToggle(layout::pedals[2], delaySync);
-    placeSwitch(layout::pedals[2], delaySwitch);
-
-    placeRow(layout::pedals[3], { &reverbDecay, &reverbSize, &reverbTone, &reverbMix });
-    placeSwitch(layout::pedals[3], reverbSwitch);
+    layoutPedals();
 
     // Output
     {

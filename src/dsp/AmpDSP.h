@@ -611,4 +611,157 @@ public:
 private:
     Biquad resonance, scoop, cone, rolloff1, rolloff2;
 };
+// ---------------------------------------------------------------------------
+// Compressor for the front of the chain. Feed-forward, soft knee, with partial
+// automatic make-up so SUSTAIN mostly changes feel rather than loudness.
+class Compressor
+{
+public:
+    void prepare(double newSampleRate)
+    {
+        sampleRate = newSampleRate;
+        attack = std::exp(-1.0f / (0.006f * (float)sampleRate));
+        release = std::exp(-1.0f / (0.14f * (float)sampleRate));
+        reset();
+    }
+    void reset() noexcept { env = 0.0f; }
+
+    // sustain and level are 0..10 knobs.
+    void setParameters(float sustain, float level, bool parallelMix) noexcept
+    {
+        threshold = -10.0f - sustain * 3.2f;
+        slope = 1.0f / (3.0f + sustain * 0.5f) - 1.0f;
+        const float makeup = -threshold * -slope * 0.42f;
+        outGain = dbToGain(makeup + (level - 5.0f) * 2.4f);
+        parallel = parallelMix;
+    }
+
+    float process(float x) noexcept
+    {
+        const float a = std::abs(x);
+        env = a + (a > env ? attack : release) * (env - a);
+        const float over = 20.0f * std::log10(env + 1.0e-9f) - threshold;
+        constexpr float knee = 6.0f;
+        float gr = 0.0f;
+        if (over >= knee * 0.5f)
+            gr = slope * over;
+        else if (over > -knee * 0.5f)
+            gr = slope * (over + knee * 0.5f) * (over + knee * 0.5f) / (2.0f * knee);
+        lastReduction = -gr;
+        const float y = x * dbToGain(gr);
+        return (parallel ? 0.5f * (x + y) : y) * outGain;
+    }
+    float getGainReductionDb() const noexcept { return lastReduction; }
+
+private:
+    double sampleRate = 44100.0;
+    float attack = 0.0f, release = 0.0f, env = 0.0f;
+    float threshold = -26.0f, slope = -0.75f, outGain = 1.0f, lastReduction = 0.0f;
+    bool parallel = false;
+};
+
+// ---------------------------------------------------------------------------
+// Swept all-pass phaser (4 or 8 stages) with feedback. Stereo: the right
+// channel's sweep runs a quarter cycle ahead.
+class Phaser
+{
+public:
+    void prepare(double newSampleRate) { sampleRate = newSampleRate; reset(); }
+    void reset() noexcept
+    {
+        for (auto& c : chans) { std::fill(std::begin(c.z), std::end(c.z), 0.0f); c.fb = 0.0f; }
+        phase = 0.0f;
+    }
+    void setParameters(float rateHz, float newDepth, float newFeedback, float newMix, bool eightStages) noexcept
+    {
+        increment = rateHz / (float)sampleRate;
+        depth = newDepth; feedback = newFeedback; mix = newMix;
+        stages = eightStages ? 8 : 4;
+    }
+    void process(float& l, float* r) noexcept
+    {
+        phase += increment;
+        if (phase >= 1.0f) phase -= 1.0f;
+        l = processChannel(chans[0], l, phase);
+        if (r != nullptr)
+            *r = processChannel(chans[1], *r, phase + 0.25f);
+    }
+
+private:
+    struct Channel { float z[8] {}; float fb = 0.0f; };
+    float processChannel(Channel& c, float in, float ph) noexcept
+    {
+        const float lfo = 0.5f - 0.5f * std::cos(juce::MathConstants<float>::twoPi * ph);
+        const float hz = 160.0f * std::exp2(lfo * depth * 5.2f);
+        const float t = std::tan(juce::MathConstants<float>::pi * juce::jmin(hz, (float)sampleRate * 0.45f) / (float)sampleRate);
+        const float a = (t - 1.0f) / (t + 1.0f);
+        float x = in + std::tanh(c.fb * feedback);
+        for (int s = 0; s < stages; ++s)
+        {
+            const float y = a * x + c.z[s];
+            c.z[s] = x - a * y;
+            x = y;
+        }
+        c.fb = x;
+        return in * (1.0f - mix) + x * mix;
+    }
+    double sampleRate = 44100.0;
+    Channel chans[2];
+    float phase = 0.0f, increment = 0.0f, depth = 0.7f, feedback = 0.4f, mix = 0.5f;
+    int stages = 4;
+};
+
+// ---------------------------------------------------------------------------
+// Modulated-delay chorus, or pure pitch vibrato. The chorus spreads the right
+// channel's sweep a quarter cycle apart; vibrato keeps both in step.
+class ChorusVibrato
+{
+public:
+    void prepare(double newSampleRate)
+    {
+        sampleRate = newSampleRate;
+        for (auto& b : buffers) b.prepare((int)(sampleRate * 0.04));
+        reset();
+    }
+    void reset()
+    {
+        for (auto& b : buffers) b.reset();
+        for (auto& t : toneLP) t.reset();
+        phase = 0.0f;
+    }
+    void setParameters(float rateHz, float newDepth, float tone, float newMix, bool vibratoMode) noexcept
+    {
+        increment = rateHz / (float)sampleRate;
+        depth = newDepth; mix = newMix; vibrato = vibratoMode;
+        const float cutoff = 2000.0f * std::exp2(tone * 2.8f);
+        for (auto& t : toneLP) t.setCutoff(sampleRate, cutoff);
+    }
+    void process(float& l, float* r) noexcept
+    {
+        phase += increment;
+        if (phase >= 1.0f) phase -= 1.0f;
+        l = processChannel(0, l, phase);
+        if (r != nullptr)
+            *r = processChannel(1, *r, vibrato ? phase : phase + 0.25f);
+    }
+
+private:
+    float processChannel(int ch, float in, float ph) noexcept
+    {
+        const float ms = (float)sampleRate * 0.001f;
+        const float base = (vibrato ? 6.0f : 14.0f) * ms;
+        const float swing = depth * (vibrato ? 4.5f : 7.0f) * ms;
+        const float d = base + swing * std::sin(juce::MathConstants<float>::twoPi * ph);
+        buffers[ch].push(in);
+        const float wet = toneLP[ch].process(buffers[ch].read(juce::jmax(1.0f, d)));
+        if (vibrato)
+            return in * (1.0f - mix) + wet * mix;
+        return (in + wet * mix * 0.9f) / (1.0f + 0.35f * mix);
+    }
+    double sampleRate = 44100.0;
+    RingBuffer buffers[2];
+    OnePole toneLP[2];
+    float phase = 0.0f, increment = 0.0f, depth = 0.5f, mix = 0.5f;
+    bool vibrato = false;
+};
 } // namespace mage::dsp
