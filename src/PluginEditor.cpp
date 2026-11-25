@@ -228,16 +228,23 @@ void MainPanel::updateDelayTimeVisibility(bool)
     layoutPedals();
 }
 
+// Read board settings from the parameter objects, not the raw values: the raw values
+// update after parameter listeners run, so layout code called from a listener would
+// otherwise see the previous board.
+static int currentIndex(juce::AudioProcessorValueTreeState& state, const juce::String& id)
+{
+    auto* param = state.getParameter(id);
+    return param != nullptr ? juce::roundToInt(param->convertFrom0to1(param->getValue())) : 0;
+}
+
 int MainPanel::boardSlot(int slot) const
 {
-    const auto* v = processor.state.getRawParameterValue(mage::slotParamID(faeChannel ? 1 : 0, slot));
-    return juce::jlimit(0, mage::numPedals - 1, juce::roundToInt(v->load()));
+    return juce::jlimit(0, mage::numPedals - 1, currentIndex(processor.state, mage::slotParamID(faeChannel ? 1 : 0, slot)));
 }
 
 int MainPanel::ampPosition() const
 {
-    const auto* v = processor.state.getRawParameterValue(mage::ampPosParamID(faeChannel ? 1 : 0));
-    return juce::jlimit(0, mage::numSlots, juce::roundToInt(v->load()));
+    return juce::jlimit(0, mage::numSlots, currentIndex(processor.state, mage::ampPosParamID(faeChannel ? 1 : 0)));
 }
 
 void MainPanel::setBoardParam(const juce::String& paramID, int value)
@@ -262,7 +269,7 @@ void MainPanel::layoutPedals()
     }
     delayDivision.setVisible(false);
 
-    const bool sync = processor.state.getRawParameterValue("delaySync")->load() > 0.5f;
+    const bool sync = currentIndex(processor.state, "delaySync") > 0;
     for (int s = 0; s < mage::numSlots; ++s)
     {
         const auto r = layout::pedals[s];
