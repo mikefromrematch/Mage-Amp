@@ -556,38 +556,57 @@ void LevelMeter::paint(juce::Graphics& g)
 // ---------------------------------------------------------------------------
 namespace
 {
-    enum class Glyph { bat, cloud, wand, sword, wisp };
-
-    struct GlyphShape { juce::Path fill, stroke, accent; };
-
-    const GlyphShape& glyphShape(Glyph glyph)
+    // An invented runic alphabet: each glyph is a few strokes on a 3x5 grid
+    // (x 0..2, y 0..4). Segments are "x1,y1-x2,y2" separated by ';'.
+    const std::vector<std::vector<juce::Line<float>>>& runeAlphabet()
     {
-        auto P = [](const char* d) { return juce::Drawable::parseSVGPath(d); };
-        static const std::array<GlyphShape, 5> shapes {{
-            // bat: spread wings, little ears
-            { P("M24 21 C22 17 20 16 18 17 C16 13 10 11 3 15 C7 16 8 19 7 23 C10 21 13 22 15 25 C17 23 20 24 24 29 "
-                "C28 24 31 23 33 25 C35 22 38 21 41 23 C40 19 41 16 45 15 C38 11 32 13 30 17 C28 16 26 17 24 21 Z "
-                "M21.5 19.5 L20.5 15 L23.5 18.5 Z M26.5 19.5 L27.5 15 L24.5 18.5 Z"), {},
-              P("M21.4 20.6 A0.9 0.9 0 1 1 21.41 20.6 Z M26.6 20.6 A0.9 0.9 0 1 1 26.61 20.6 Z") },
-            // cloud: puffy outline (fill), curled tail (stroke), inner swirls (accent)
-            { P("M9 35 A6 6 0 0 1 9 23 A8 8 0 0 1 22 15 A9 9 0 0 1 37 19 A7 7 0 0 1 40 33 Q39 35 36 35 Z"),
-              P("M9 35 C5 35 3 39 6 41 C8 42.5 10 40 8.5 39"),
-              P("M13.5 30 C11.5 23.5 20.5 20.5 23.5 25 C25.5 28.5 21 31.5 18.8 29.2 C17.2 27.5 19.5 25.2 21.2 27 "
-                "M24.5 31 C28.5 31 30.5 28.5 33.5 28.5 C37 28.5 37.5 24.5 35 23.5") },
-            // wand: slim staff tipped with a star
-            { P("M35 6 L36.6 11.4 L42 13 L36.6 14.6 L35 20 L33.4 14.6 L28 13 L33.4 11.4 Z"),
-              P("M10 41 L30 18"),
-              P("M41 22 A1 1 0 1 1 41.01 22 Z M26 8 A0.9 0.9 0 1 1 26.01 8 Z M44 7 A0.8 0.8 0 1 1 44.01 7 Z") },
-            // sword: blade, cross-guard, grip and pommel (drawn upright, tilted when placed)
-            { P("M24 3 L27 9 L27 31 L21 31 L21 9 Z"),
-              P("M14 31.5 L34 31.5 M24 32 L24 41"),
-              P("M26 43.5 A2 2 0 1 1 26.01 43.5 Z") },
-            // wisp: glowing teardrop flame with a curling tail
-            { P("M24 9 C30 17 32 23 32 27 A8 8 0 0 1 16 27 C16 23 18 17 24 9 Z"),
-              P("M24 35 C24 41 18 44 14 40"),
-              P("M24 24 A3 3 0 1 1 24.01 24 Z") },
-        }};
-        return shapes[static_cast<size_t>(glyph)];
+        static const std::vector<std::vector<juce::Line<float>>> alphabet = []
+        {
+            const char* defs[] = {
+                "0,0-0,4;0,1-2,0",           "1,0-1,4;0,1-2,3",           "0,0-0,4;0,0-2,1;2,1-0,2",
+                "0,4-1,0;1,0-2,4",           "0,0-2,4;2,0-0,4",           "1,0-1,4;0,0-1,1;2,0-1,1",
+                "0,0-0,4;2,0-2,4;0,2-2,1",   "1,0-0,2;0,2-1,4;1,4-2,2;2,2-1,0", "0,0-0,4;0,2-2,0;0,2-2,4",
+                "1,0-1,4;0,3-1,2;2,3-1,2",   "0,4-0,0;0,0-2,2;2,2-2,4",   "0,1-2,1;0,3-2,3;1,0-1,4",
+                "0,0-0,4;0,0-2,1;0,2-2,1;0,2-2,3;0,4-2,3", "1,0-1,4;1,1-2,0;1,3-0,4", "0,0-1,4;1,4-2,0",
+                "0,0-0,3;0,3-2,4;2,0-2,4",   "1,0-1,4;0,2-1,1;1,1-2,2",   "0,0-2,0;1,0-1,4;0,3-1,4",
+                "0,4-2,0;0,0-1,2",           "0,1-1,0;1,0-2,1;1,0-1,4;0,4-2,4",
+            };
+            std::vector<std::vector<juce::Line<float>>> out;
+            for (auto* d : defs)
+            {
+                std::vector<juce::Line<float>> glyph;
+                for (const auto& seg : juce::StringArray::fromTokens(d, ";", ""))
+                {
+                    const auto pts = juce::StringArray::fromTokens(seg, "-,", "");
+                    if (pts.size() == 4)
+                        glyph.push_back({ pts[0].getFloatValue(), pts[1].getFloatValue(),
+                                          pts[2].getFloatValue(), pts[3].getFloatValue() });
+                }
+                out.push_back(std::move(glyph));
+            }
+            return out;
+        }();
+        return alphabet;
+    }
+
+    // The "spell": glyph indices, with -1 marking a word break (drawn as a small diamond).
+    const std::vector<int>& spellText()
+    {
+        static const std::vector<int> text = []
+        {
+            std::vector<int> t;
+            juce::Random rnd(0x4d414745); // "MAGE"
+            const int numGlyphs = (int)runeAlphabet().size();
+            for (int word = 0; word < 24; ++word)
+            {
+                const int len = 3 + rnd.nextInt(5);
+                for (int k = 0; k < len; ++k)
+                    t.push_back(rnd.nextInt(numGlyphs));
+                t.push_back(-1);
+            }
+            return t;
+        }();
+        return text;
     }
 
     void drawSparkle(juce::Graphics& g, juce::Point<float> c, float r, juce::Colour colour)
@@ -612,8 +631,8 @@ MagicFrieze::MagicFrieze()
 
 void MagicFrieze::timerCallback()
 {
-    phase += 0.035f;
-    if (phase > juce::MathConstants<float>::twoPi * 100.0f)
+    phase += 1.0f / 24.0f; // seconds
+    if (phase > 3600.0f)
         phase = 0.0f;
     repaint();
 }
@@ -622,150 +641,132 @@ void MagicFrieze::paint(juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat();
     const float cy = r.getCentreY();
-    const float amp = r.getHeight() * 0.2f;
-    const float wavelength = 210.0f;
+    const float amp = r.getHeight() * 0.11f;
+    const float wavelength = 380.0f;
+    const float halfBand = r.getHeight() * 0.27f;      // ribbon half-height
     constexpr float twoPi = juce::MathConstants<float>::twoPi;
+    const float wavePhase = phase * 0.45f;              // ribbon undulation
 
-    auto waveY = [&](float x, float offset, float a)
-    {
-        return cy + a * std::sin(twoPi * x / wavelength - phase + offset);
-    };
-
-    // Soft fade at both ends so the frieze melts into the panel.
+    auto centreY = [&](float x) { return cy + amp * std::sin(twoPi * x / wavelength - wavePhase); };
+    auto slope   = [&](float x) { return amp * twoPi / wavelength * std::cos(twoPi * x / wavelength - wavePhase); };
     auto edgeFade = [&](float x)
     {
         const float d = juce::jmin(x - r.getX(), r.getRight() - x);
-        return juce::jlimit(0.0f, 1.0f, d / 70.0f);
+        return juce::jlimit(0.0f, 1.0f, d / 90.0f);
+    };
+    auto tintAt = [&](float x)
+    {
+        const float t = juce::jlimit(0.0f, 1.0f, (x - r.getX()) / r.getWidth());
+        return colours::cyan.interpolatedWith(colours::violet, juce::jmin(1.0f, t * 2.0f))
+                            .interpolatedWith(colours::pink, juce::jmax(0.0f, t * 2.0f - 1.0f));
     };
 
-    // ---- Flowing waves ----
-    struct Strand { float offset, ampScale, width, alpha; };
-    const Strand strands[] = { { 0.0f, 1.0f, 2.2f, 0.9f }, { juce::MathConstants<float>::pi, 1.0f, 2.2f, 0.9f },
-                               { 1.6f, 0.55f, 1.0f, 0.45f } };
-    for (const auto& s : strands)
+    // ---- Ribbon body and its two glowing edges ----
+    juce::Path top, bottom, body;
+    top.startNewSubPath(r.getX(), centreY(r.getX()) - halfBand);
+    bottom.startNewSubPath(r.getX(), centreY(r.getX()) + halfBand);
+    for (float x = r.getX() + 4.0f; x <= r.getRight() + 0.1f; x += 4.0f)
     {
-        juce::Path wave;
-        wave.startNewSubPath(r.getX(), waveY(r.getX(), s.offset, amp * s.ampScale));
-        for (float x = r.getX() + 4.0f; x <= r.getRight(); x += 4.0f)
-            wave.lineTo(x, waveY(x, s.offset, amp * s.ampScale));
+        top.lineTo(x, centreY(x) - halfBand);
+        bottom.lineTo(x, centreY(x) + halfBand);
+    }
+    body = top;
+    for (float x = r.getRight(); x >= r.getX() - 0.1f; x -= 4.0f)
+        body.lineTo(x, centreY(x) + halfBand);
+    body.closeSubPath();
+
+    auto gradientFor = [&](float alpha)
+    {
         juce::ColourGradient grad(colours::cyan.withAlpha(0.0f), r.getX(), cy, colours::pink.withAlpha(0.0f), r.getRight(), cy, false);
-        grad.addColour(0.08, colours::cyan.withAlpha(s.alpha));
-        grad.addColour(0.5, colours::violet.withAlpha(s.alpha));
-        grad.addColour(0.92, colours::pink.withAlpha(s.alpha));
-        juce::ColourGradient glow = grad;
-        for (int i = 0; i < glow.getNumColours(); ++i)
-            glow.setColour(i, glow.getColour(i).withMultipliedAlpha(0.18f));
-        g.setGradientFill(glow);
-        g.strokePath(wave, juce::PathStrokeType(s.width * 3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setGradientFill(grad);
-        g.strokePath(wave, juce::PathStrokeType(s.width, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-    }
-
-    // ---- Sparkles that twinkle along the waves ----
-    for (int i = 0; i < 34; ++i)
-    {
-        const float x = r.getX() + 20.0f + std::fmod(i * 97.3f, r.getWidth() - 40.0f);
-        const float yOff = std::sin(i * 2.17f) * r.getHeight() * 0.42f;
-        const float tw = 0.5f + 0.5f * std::sin(phase * 2.3f + i * 1.7f);
-        const auto colour = colours::cyan.interpolatedWith(colours::pink, (x - r.getX()) / r.getWidth());
-        drawSparkle(g, { x, cy + yOff }, 1.5f + 2.2f * tw, (i % 3 == 0 ? colours::ivory : colour)
-                        .withAlpha((0.15f + 0.6f * tw) * edgeFade(x)));
-    }
-
-    // ---- Magical silhouettes riding the waves ----
-    struct Placed { Glyph glyph; float t; float rotation; };
-    const Placed placed[] = {
-        { Glyph::wisp, 0.05f, 0.0f },  { Glyph::bat, 0.15f, 0.0f },    { Glyph::wand, 0.25f, 0.0f },
-        { Glyph::cloud, 0.35f, 0.0f },   { Glyph::wisp, 0.44f, 0.0f },   { Glyph::sword, 0.53f, -0.75f },
-        { Glyph::bat, 0.62f, 0.15f },  { Glyph::cloud, 0.71f, 0.0f },    { Glyph::wand, 0.80f, 0.0f },
-        { Glyph::sword, 0.88f, 0.75f },{ Glyph::wisp, 0.96f, 0.0f },
+        grad.addColour(0.07, colours::cyan.withAlpha(alpha));
+        grad.addColour(0.5, colours::violet.withAlpha(alpha));
+        grad.addColour(0.93, colours::pink.withAlpha(alpha));
+        return grad;
     };
-    const float size = r.getHeight() * 0.95f;
-    for (size_t i = 0; i < std::size(placed); ++i)
+    g.setGradientFill(gradientFor(0.07f));
+    g.fillPath(body);
+    const juce::PathStrokeType glowStroke(5.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
+    const juce::PathStrokeType edgeStroke(1.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
+    g.setGradientFill(gradientFor(0.12f));
+    g.strokePath(top, glowStroke);
+    g.strokePath(bottom, glowStroke);
+    g.setGradientFill(gradientFor(0.85f));
+    g.strokePath(top, edgeStroke);
+    g.strokePath(bottom, edgeStroke);
+
+    // ---- Scrolling inscription ----
+    const auto& alphabet = runeAlphabet();
+    const auto& text = spellText();
+    const float glyphH = halfBand * 1.25f;
+    const float unit = glyphH / 4.0f;          // grid unit
+    const float advance = unit * 2.0f + unit * 2.2f;
+    const float wordGap = unit * 4.0f;
+
+    float textLength = 0.0f;
+    for (int idx : text)
+        textLength += idx < 0 ? wordGap : advance;
+
+    const float scroll = std::fmod(phase * 18.0f, textLength);                       // px/s leftward
+    const float pulseCycle = 7.0f;
+    const float pulseX = r.getX() - 150.0f + std::fmod(phase, pulseCycle) / pulseCycle * (r.getWidth() + 300.0f);
+
+    const juce::PathStrokeType runeGlow(unit * 1.6f, juce::PathStrokeType::mitered, juce::PathStrokeType::rounded);
+    const juce::PathStrokeType runeStroke(juce::jmax(1.1f, unit * 0.55f), juce::PathStrokeType::mitered, juce::PathStrokeType::rounded);
+
+    // Lay the text out repeatedly so the ribbon is always full.
+    for (float base = r.getX() - scroll; base < r.getRight(); base += textLength)
     {
-        const auto& p = placed[i];
-        const float x = r.getX() + p.t * r.getWidth();
-        const float t = (x - r.getX()) / r.getWidth();
-        const float fade = edgeFade(x);
-        const auto tint = colours::cyan.interpolatedWith(colours::violet, juce::jmin(1.0f, t * 2.0f))
-                              .interpolatedWith(colours::pink, juce::jmax(0.0f, t * 2.0f - 1.0f));
-        // Ride the wave, with a little independent float (bats flap higher, wisps bob).
-        float bob = std::sin(phase * 1.6f + (float)i * 1.3f);
-        float y = waveY(x, i % 2 == 0 ? 0.0f : juce::MathConstants<float>::pi, amp) * 0.35f + cy * 0.65f;
-        if (p.glyph == Glyph::bat)  y += bob * 3.0f - 2.0f;
-        if (p.glyph == Glyph::wisp) y += bob * 2.5f;
-        if (p.glyph == Glyph::cloud) y += bob * 1.5f;
-        const float rot = p.rotation + (p.glyph == Glyph::bat ? 0.08f * bob : 0.0f);
-
-        const auto& shape = glyphShape(p.glyph);
-        const auto tf = juce::AffineTransform::translation(-24.0f, -26.0f)
-                            .scaled(size / 48.0f).rotated(rot).translated(x, y);
-
-        if (p.glyph == Glyph::wisp || p.glyph == Glyph::wand)
+        float x = base;
+        for (int idx : text)
         {
-            const auto glowCentre = p.glyph == Glyph::wisp ? juce::Point<float>(24.0f, 26.0f).transformedBy(tf)
-                                                           : juce::Point<float>(35.0f, 13.0f).transformedBy(tf);
-            const float gr = size * 0.55f;
-            juce::ColourGradient halo(tint.withAlpha(0.45f * fade), glowCentre.x, glowCentre.y,
-                                      tint.withAlpha(0.0f), glowCentre.x + gr, glowCentre.y, true);
-            g.setGradientFill(halo);
-            g.fillEllipse(glowCentre.x - gr, glowCentre.y - gr, gr * 2.0f, gr * 2.0f);
-        }
+            const float w = idx < 0 ? wordGap : advance;
+            const float cx = x + w * 0.5f;
+            x += w;
+            if (cx < r.getX() - 10.0f || cx > r.getRight() + 10.0f)
+                continue;
 
-        auto fillPath = shape.fill;   fillPath.applyTransform(tf);
-        auto strokePath = shape.stroke; strokePath.applyTransform(tf);
-        auto accentPath = shape.accent; accentPath.applyTransform(tf);
-        const float sw = juce::jmax(1.4f, size * 0.055f);
+            const float fade = edgeFade(cx);
+            if (fade <= 0.0f)
+                continue;
+            const float pulse = std::exp(-std::pow((cx - pulseX) / 80.0f, 2.0f));
+            const auto tint = tintAt(cx).interpolatedWith(colours::ivory, pulse * 0.7f);
+            const float angle = std::atan(slope(cx));
+            const auto tf = juce::AffineTransform::rotation(angle).translated(cx, centreY(cx));
 
-        switch (p.glyph)
-        {
-            case Glyph::cloud:
+            if (idx < 0)
             {
-                juce::ColourGradient body(tint.withAlpha(0.28f * fade), x, y - size * 0.3f,
-                                          juce::Colour(0xff0a0d1b).withAlpha(0.9f * fade), x, y + size * 0.3f, false);
-                g.setGradientFill(body);
-                g.fillPath(fillPath);
-                g.setColour(tint.withAlpha(0.95f * fade));
-                g.strokePath(fillPath, juce::PathStrokeType(sw * 0.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-                g.setColour(tint.withAlpha(0.7f * fade));
-                g.strokePath(strokePath, juce::PathStrokeType(sw * 0.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-                g.setColour(colours::ivory.withAlpha(0.85f * fade));
-                g.strokePath(accentPath, juce::PathStrokeType(sw * 0.7f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-                break;
+                juce::Path diamond;
+                const float d = unit * 0.7f;
+                diamond.addQuadrilateral(0, -d, d, 0, 0, d, -d, 0);
+                diamond.applyTransform(tf);
+                g.setColour(tint.withAlpha((0.45f + 0.5f * pulse) * fade));
+                g.fillPath(diamond);
+                continue;
             }
-            case Glyph::bat:
-                g.setColour(juce::Colour(0xff0a0d1b).withAlpha(fade));          // silhouette
-                g.fillPath(fillPath);
-                g.setColour(tint.withAlpha(0.9f * fade));                      // rim light
-                g.strokePath(fillPath, juce::PathStrokeType(1.2f));
-                g.strokePath(strokePath, juce::PathStrokeType(sw, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-                g.setColour(colours::pink.brighter(0.3f).withAlpha(fade));      // glowing eyes
-                g.fillPath(accentPath);
-                break;
-            case Glyph::wand:
-                g.setColour(colours::muted.withAlpha(0.9f * fade));
-                g.strokePath(strokePath, juce::PathStrokeType(sw, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-                g.setColour(colours::ivory.withAlpha(fade));
-                g.fillPath(fillPath);
-                g.setColour(tint.withAlpha(0.8f * fade));
-                g.fillPath(accentPath);
-                break;
-            case Glyph::sword:
-                g.setColour(colours::ivory.withAlpha(0.85f * fade));
-                g.fillPath(fillPath);
-                g.setColour(tint.withAlpha(fade));
-                g.strokePath(fillPath, juce::PathStrokeType(1.0f));
-                g.strokePath(strokePath, juce::PathStrokeType(sw * 1.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-                g.fillPath(accentPath);
-                break;
-            case Glyph::wisp:
-                g.setColour(tint.withAlpha(0.75f * fade));
-                g.fillPath(fillPath);
-                g.strokePath(strokePath, juce::PathStrokeType(sw, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-                g.setColour(colours::ivory.withAlpha(0.9f * fade));
-                g.fillPath(accentPath);
-                break;
+
+            juce::Path glyph;
+            for (const auto& seg : alphabet[(size_t)idx])
+            {
+                glyph.startNewSubPath((seg.getStartX() - 1.0f) * unit, (seg.getStartY() - 2.0f) * unit);
+                glyph.lineTo((seg.getEndX() - 1.0f) * unit, (seg.getEndY() - 2.0f) * unit);
+            }
+            glyph.applyTransform(tf);
+            g.setColour(tint.withAlpha((0.10f + 0.30f * pulse) * fade));
+            g.strokePath(glyph, runeGlow);
+            g.setColour(tint.withAlpha((0.55f + 0.45f * pulse) * fade));
+            g.strokePath(glyph, runeStroke);
         }
+    }
+
+    // ---- A few faint sparkles drifting around the ribbon ----
+    for (int i = 0; i < 16; ++i)
+    {
+        const float x = r.getX() + 30.0f + std::fmod(i * 131.7f + phase * 6.0f, r.getWidth() - 60.0f);
+        const float side = (i % 2 == 0 ? -1.0f : 1.0f);
+        const float y = centreY(x) + side * (halfBand + 4.0f + 3.0f * std::abs(std::sin(i * 1.9f)));
+        const float tw = 0.5f + 0.5f * std::sin(phase * 2.2f + i * 1.7f);
+        drawSparkle(g, { x, y }, 1.2f + 1.6f * tw,
+                    (i % 3 == 0 ? colours::ivory : tintAt(x)).withAlpha((0.1f + 0.5f * tw) * edgeFade(x)));
     }
 }
 

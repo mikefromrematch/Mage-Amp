@@ -109,8 +109,8 @@ private:
     int holdFrames = 0;
 };
 
-// Animated frieze for the top of the amp head: two flowing waves carrying
-// magical silhouettes (wands, swords, swirly clouds, bats, wisps) and twinkling sparkles.
+// Animated frieze for the top of the amp head: a glowing ribbon carrying a
+// slowly scrolling runic spell inscription, with a pulse of light reading along it.
 class MagicFrieze final : public juce::Component, private juce::Timer
 {
 public:
