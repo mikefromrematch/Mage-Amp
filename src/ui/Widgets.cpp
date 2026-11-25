@@ -13,6 +13,76 @@ juce::Font font(float size, bool bold, float kerning)
     return f;
 }
 
+// ---------------------------------------------------------------------------
+const Theme& arcaneTheme()
+{
+    static const Theme t = []
+    {
+        Theme a;
+        a.fae = false;
+        a.bg = juce::Colour(0xff070911); a.face = juce::Colour(0xff0a0d1b); a.metal = juce::Colour(0xff151d2b);
+        a.cyan = juce::Colour(0xff59ddff); a.blue = juce::Colour(0xff458bff); a.pink = juce::Colour(0xffff70d5);
+        a.violet = juce::Colour(0xffb06bff); a.ivory = juce::Colour(0xffedf4ff); a.muted = juce::Colour(0xff91a3ba);
+        a.dim = juce::Colour(0xff3a465a);
+        a.header = juce::Colour(0xff0a0f1c); a.headerLine = juce::Colour(0xff24304a); a.etching = juce::Colour(0xff14213a);
+        a.divider = juce::Colour(0xff26324a); a.panelShadow = juce::Colour(0xdd00030a); a.panelEdgeDark = juce::Colour(0xff15152a);
+        a.faceTop = juce::Colour(0xff0e1224); a.faceBottom = juce::Colour(0xff080a16); a.ledOff = juce::Colour(0xff283245);
+        a.track = juce::Colour(0xff1d2738); a.knobHi = juce::Colour(0xff5d6f86); a.knobLo = juce::Colour(0xff0f1724);
+        a.knobRim = juce::Colour(0xff8ea0b6); a.capHi = juce::Colour(0xff26324a); a.capLo = juce::Colour(0xff0b111d);
+        a.screen = juce::Colour(0xff05070f); a.control = juce::Colour(0xff0c1425); a.popup = juce::Colour(0xff0c1222);
+        a.screwHole = juce::Colour(0xff02050b); a.screwSlot = juce::Colour(0xff73839a); a.glow = juce::Colour(0xff9a6bff);
+        return a;
+    }();
+    return t;
+}
+
+// Moonlit glow: still a night palette, but lifted toward deep teal, with moss,
+// pale gold, rose and lilac light, pearl knobs and warm moonlight text.
+const Theme& faeTheme()
+{
+    static const Theme t = []
+    {
+        Theme f;
+        f.fae = true;
+        f.bg = juce::Colour(0xff0c1718); f.face = juce::Colour(0xff10201f); f.metal = juce::Colour(0xff1b2d2b);
+        f.cyan = juce::Colour(0xff8fe8b6); f.blue = juce::Colour(0xfff1d38a); f.pink = juce::Colour(0xfff6a3c4);
+        f.violet = juce::Colour(0xffc9b5ff); f.ivory = juce::Colour(0xfffbf4e4); f.muted = juce::Colour(0xffa8bdb3);
+        f.dim = juce::Colour(0xff41564e);
+        f.header = juce::Colour(0xff0f1d1d); f.headerLine = juce::Colour(0xff2c4440); f.etching = juce::Colour(0xff21403a);
+        f.divider = juce::Colour(0xff2d4540); f.panelShadow = juce::Colour(0xcc000806); f.panelEdgeDark = juce::Colour(0xff15262a);
+        f.faceTop = juce::Colour(0xff142624); f.faceBottom = juce::Colour(0xff0c1817); f.ledOff = juce::Colour(0xff2d403b);
+        f.track = juce::Colour(0xff203431); f.knobHi = juce::Colour(0xffc6d5cc); f.knobLo = juce::Colour(0xff2a3a35);
+        f.knobRim = juce::Colour(0xffe2ede4); f.capHi = juce::Colour(0xff3a5049); f.capLo = juce::Colour(0xff13201d);
+        f.screen = juce::Colour(0xff081210); f.control = juce::Colour(0xff11211f); f.popup = juce::Colour(0xff10201e);
+        f.screwHole = juce::Colour(0xff050c0a); f.screwSlot = juce::Colour(0xff9fb4a8); f.glow = juce::Colour(0xffb9a6ff);
+        return f;
+    }();
+    return t;
+}
+
+static const Theme* activeTheme = nullptr;
+
+const Theme& currentTheme() { return activeTheme != nullptr ? *activeTheme : arcaneTheme(); }
+
+void useTheme(const Theme& t)
+{
+    if (activeTheme == &t)
+        return;
+    activeTheme = &t;
+    bg = t.bg; face = t.face; metal = t.metal; cyan = t.cyan; blue = t.blue; pink = t.pink;
+    violet = t.violet; ivory = t.ivory; muted = t.muted; dim = t.dim;
+}
+
+void useThemeOf(const juce::Component& c)
+{
+    for (auto* p = &c; p != nullptr; p = p->getParentComponent())
+        if (auto* holder = dynamic_cast<const ThemeHolder*>(p))
+        {
+            useTheme(holder->getTheme());
+            return;
+        }
+}
+
 static juce::Colour accentOf(const juce::Component& c, juce::Colour fallback)
 {
     const auto v = c.getProperties()["accent"];
@@ -22,17 +92,18 @@ static juce::Colour accentOf(const juce::Component& c, juce::Colour fallback)
 // ---------------------------------------------------------------------------
 void drawPanel(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour accent, float radius)
 {
-    g.setColour(juce::Colour(0xdd00030a));
+    const auto& t = currentTheme();
+    g.setColour(t.panelShadow);
     g.fillRoundedRectangle(r.translated(0.0f, 7.0f), radius);
     juce::ColourGradient edge(accent.withAlpha(0.9f), r.getX(), r.getY(),
-                              juce::Colour(0xff15152a), r.getRight(), r.getBottom(), false);
+                              t.panelEdgeDark, r.getRight(), r.getBottom(), false);
     g.setGradientFill(edge);
     g.fillRoundedRectangle(r, radius);
     g.setColour(accent.withAlpha(0.95f));
     g.drawRoundedRectangle(r, radius, 2.0f);
     auto inner = r.reduced(5.0f);
-    juce::ColourGradient faceGrad(juce::Colour(0xff0e1224), inner.getX(), inner.getY(),
-                                  juce::Colour(0xff080a16), inner.getX(), inner.getBottom(), false);
+    juce::ColourGradient faceGrad(t.faceTop, inner.getX(), inner.getY(),
+                                  t.faceBottom, inner.getX(), inner.getBottom(), false);
     g.setGradientFill(faceGrad);
     g.fillRoundedRectangle(inner, radius - 4.0f);
     g.setColour(accent.withAlpha(0.20f));
@@ -54,21 +125,55 @@ void drawRune(juce::Graphics& g, float x, float y, float size, juce::Colour colo
 
 void drawScrew(juce::Graphics& g, juce::Point<float> p, float r, juce::Colour accent)
 {
-    g.setColour(juce::Colour(0xff02050b));
+    g.setColour(currentTheme().screwHole);
     g.fillEllipse(p.x - r, p.y - r, r * 2.0f, r * 2.0f);
     g.setColour(accent.withAlpha(0.6f));
     g.drawEllipse(p.x - r * 0.7f, p.y - r * 0.7f, r * 1.4f, r * 1.4f, 1.2f);
-    g.setColour(juce::Colour(0xff73839a).withAlpha(0.7f));
+    g.setColour(currentTheme().screwSlot.withAlpha(0.7f));
     g.drawLine(p.x - r * 0.45f, p.y, p.x + r * 0.45f, p.y, 1.0f);
 }
 
-void drawCrest(juce::Graphics& g, float x, float y, float size)
+namespace
 {
-    // The MAGE brush mark (assets/mage_mark.png), pre-tinted cyan -> violet -> pink with its glow.
-    static const juce::Image mark = juce::ImageCache::getFromMemory(BinaryData::mage_mark_png,
-                                                                    BinaryData::mage_mark_pngSize);
-    if (mark.isValid())
-        g.drawImage(mark, { x, y, size, size }, juce::RectanglePlacement::centred);
+    struct LogoImages { juce::Image ink, glow; };
+    const LogoImages& logoImages(Logo logo)
+    {
+        static const LogoImages mark { juce::ImageCache::getFromMemory(BinaryData::mage_mark_ink_png, BinaryData::mage_mark_ink_pngSize),
+                                       juce::ImageCache::getFromMemory(BinaryData::mage_mark_glow_png, BinaryData::mage_mark_glow_pngSize) };
+        static const LogoImages word { juce::ImageCache::getFromMemory(BinaryData::mage_wordmark_ink_png, BinaryData::mage_wordmark_ink_pngSize),
+                                       juce::ImageCache::getFromMemory(BinaryData::mage_wordmark_glow_png, BinaryData::mage_wordmark_glow_pngSize) };
+        return logo == Logo::mark ? mark : word;
+    }
+}
+
+float logoAspect(Logo logo)
+{
+    const auto& img = logoImages(logo).ink;
+    return img.isValid() ? (float)img.getWidth() / (float)img.getHeight() : 1.0f;
+}
+
+void drawLogo(juce::Graphics& g, Logo logo, juce::Rectangle<float> area)
+{
+    const auto& images = logoImages(logo);
+    if (!images.ink.isValid())
+        return;
+    const auto& t = currentTheme();
+    // Fit the image inside `area`, keeping its aspect ratio.
+    const auto target = juce::RectanglePlacement(juce::RectanglePlacement::centred)
+                            .appliedTo(juce::Rectangle<float>(0, 0, (float)images.ink.getWidth(), (float)images.ink.getHeight()), area);
+    const auto tf = juce::AffineTransform::scale(target.getWidth() / (float)images.ink.getWidth(),
+                                                 target.getHeight() / (float)images.ink.getHeight())
+                        .translated(target.getX(), target.getY());
+    juce::Graphics::ScopedSaveState save(g);
+    g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
+    g.setColour(t.glow.withAlpha(0.6f));
+    g.drawImageTransformed(images.glow, tf, true);
+    const bool diagonal = logo == Logo::mark;
+    juce::ColourGradient ink(t.cyan, target.getX(), target.getY(),
+                             t.pink, target.getRight(), diagonal ? target.getBottom() : target.getY() + target.getHeight() * 0.18f, false);
+    ink.addColour(0.5, t.violet);
+    g.setGradientFill(ink);
+    g.drawImageTransformed(images.ink, tf, true);
 }
 
 // ---------------------------------------------------------------------------
@@ -99,7 +204,7 @@ namespace
             return RuneElement { juce::Drawable::parseSVGPath(d), colour, alpha, kind };
         };
 
-        static const std::array<std::vector<RuneElement>, 12> table {{
+        static const std::array<std::vector<RuneElement>, 14> table {{
             // gain: flame
             { e("M24 5 L33 22 L28 24 L34 34 L24 43 L14 34 L20 24 L15 22 Z", C),
               e("M24 26 L28 33 L24 37 L20 33 Z", P, K::fill) },
@@ -144,6 +249,14 @@ namespace
             { e("M24 42 L24 7 M14 17 L24 7 L34 17", P),
               e("M16 30 L24 24 L32 30", P, K::stroke, 0.55f),
               e("M12 42 L36 42", C) },
+            // shimmer: rising star
+            { e("M22 10 Q23.5 24 38 26 Q23.5 28 22 42 Q20.5 28 6 26 Q20.5 24 22 10 Z", V, K::strokeAndTint),
+              e("M38 5 Q38.8 10.2 44 11 Q38.8 11.8 38 17 Q37.2 11.8 32 11 Q37.2 10.2 38 5 Z", P, K::fill),
+              e(circle(39, 38, 2.0f), I, K::fill) },
+            // freeze: ice crystal
+            { e("M24 5 L40.5 14.5 L40.5 33.5 L24 43 L7.5 33.5 L7.5 14.5 Z", C),
+              e("M24 11 L24 37 M12.7 17.5 L35.3 30.5 M12.7 30.5 L35.3 17.5", B, K::stroke, 0.75f),
+              e(circle(24, 24, 2.4f), I, K::fill) },
         }};
         return table[static_cast<size_t>(rune)];
     }
@@ -162,7 +275,22 @@ void drawSectionRune(juce::Graphics& g, Rune rune, juce::Rectangle<float> area, 
 
     for (const auto& el : runeElements(rune))
     {
-        const auto colour = (monochrome ? mono : juce::Colour(el.colour)).withMultipliedAlpha(el.alpha * alpha);
+        // Rune colours are authored in the Arcane palette; map them onto the active theme.
+        auto themed = [](juce::uint32 c)
+        {
+            switch (c)
+            {
+                case 0xff59ddff: return cyan;
+                case 0xffff70d5: return pink;
+                case 0xff458bff: return blue;
+                case 0xffb06bff: return violet;
+                case 0xffedf4ff: return ivory;
+                case 0xff9a8bff: return violet.interpolatedWith(blue, 0.35f);
+                case 0xff91a3ba: return muted;
+                default:         return juce::Colour(c);
+            }
+        };
+        const auto colour = (monochrome ? mono : themed(el.colour)).withMultipliedAlpha(el.alpha * alpha);
         auto path = el.path;
         path.applyTransform(transform);
         switch (el.kind)
@@ -215,33 +343,40 @@ void drawRuneTitle(juce::Graphics& g, Rune rune, const juce::String& text, juce:
 // ---------------------------------------------------------------------------
 MageLookAndFeel::MageLookAndFeel()
 {
-    setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff0c1222));
-    setColour(juce::PopupMenu::textColourId, ivory);
-    setColour(juce::PopupMenu::highlightedBackgroundColourId, blue.withAlpha(0.35f));
+    applyTheme(arcaneTheme());
+}
+
+void MageLookAndFeel::applyTheme(const Theme& t)
+{
+    setColour(juce::PopupMenu::backgroundColourId, t.popup);
+    setColour(juce::PopupMenu::textColourId, t.ivory);
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, t.blue.withAlpha(0.35f));
     setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
-    setColour(juce::PopupMenu::headerTextColourId, cyan);
-    setColour(juce::ComboBox::textColourId, ivory);
-    setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff0c1425));
-    setColour(juce::ComboBox::outlineColourId, blue.withAlpha(0.75f));
-    setColour(juce::ComboBox::arrowColourId, muted);
-    setColour(juce::TextButton::textColourOffId, cyan);
-    setColour(juce::TextButton::textColourOnId, ivory);
-    setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0f1a2c));
-    setColour(juce::AlertWindow::backgroundColourId, juce::Colour(0xff0c1222));
-    setColour(juce::AlertWindow::textColourId, ivory);
-    setColour(juce::AlertWindow::outlineColourId, cyan.withAlpha(0.6f));
-    setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff070b16));
-    setColour(juce::TextEditor::textColourId, ivory);
-    setColour(juce::TextEditor::outlineColourId, blue.withAlpha(0.6f));
-    setColour(juce::TextEditor::focusedOutlineColourId, cyan);
-    setColour(juce::TooltipWindow::backgroundColourId, juce::Colour(0xff0c1222));
-    setColour(juce::TooltipWindow::textColourId, ivory);
-    setColour(juce::TooltipWindow::outlineColourId, blue.withAlpha(0.6f));
+    setColour(juce::PopupMenu::headerTextColourId, t.cyan);
+    setColour(juce::ComboBox::textColourId, t.ivory);
+    setColour(juce::ComboBox::backgroundColourId, t.control);
+    setColour(juce::ComboBox::outlineColourId, t.blue.withAlpha(0.75f));
+    setColour(juce::ComboBox::arrowColourId, t.muted);
+    setColour(juce::TextButton::textColourOffId, t.cyan);
+    setColour(juce::TextButton::textColourOnId, t.ivory);
+    setColour(juce::TextButton::buttonColourId, t.control);
+    setColour(juce::AlertWindow::backgroundColourId, t.popup);
+    setColour(juce::AlertWindow::textColourId, t.ivory);
+    setColour(juce::AlertWindow::outlineColourId, t.cyan.withAlpha(0.6f));
+    setColour(juce::TextEditor::backgroundColourId, t.screen);
+    setColour(juce::TextEditor::textColourId, t.ivory);
+    setColour(juce::TextEditor::outlineColourId, t.blue.withAlpha(0.6f));
+    setColour(juce::TextEditor::focusedOutlineColourId, t.cyan);
+    setColour(juce::TooltipWindow::backgroundColourId, t.popup);
+    setColour(juce::TooltipWindow::textColourId, t.ivory);
+    setColour(juce::TooltipWindow::outlineColourId, t.blue.withAlpha(0.6f));
 }
 
 void MageLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, int h, float pos,
                                        float start, float end, juce::Slider& slider)
 {
+    useThemeOf(slider);
+    const auto& t = currentTheme();
     const auto bounds = juce::Rectangle<float>((float)x, (float)y, (float)w, (float)h);
     const float R = juce::jmin(bounds.getWidth(), bounds.getHeight()) * 0.5f - 2.0f;
     const auto c = bounds.getCentre();
@@ -267,7 +402,7 @@ void MageLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, i
     // Track + value arc (with a soft glow)
     juce::Path track;
     track.addCentredArc(c.x, c.y, arcR * 0.93f, arcR * 0.93f, 0.0f, start, end, true);
-    g.setColour(juce::Colour(0xff1d2738));
+    g.setColour(t.track);
     g.strokePath(track, juce::PathStrokeType(arcW, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     if (pos > 0.001f)
     {
@@ -285,16 +420,16 @@ void MageLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, i
     const float bodyR = R * 0.70f;
     g.setColour(juce::Colour(0xaa000000));
     g.fillEllipse(c.x - bodyR + 1.5f, c.y - bodyR + bodyR * 0.12f, bodyR * 2.0f, bodyR * 2.0f);
-    juce::ColourGradient metalGrad(juce::Colour(0xff5d6f86), c.x - bodyR * 0.6f, c.y - bodyR,
-                                   juce::Colour(0xff0f1724), c.x + bodyR * 0.5f, c.y + bodyR, false);
+    juce::ColourGradient metalGrad(t.knobHi, c.x - bodyR * 0.6f, c.y - bodyR,
+                                   t.knobLo, c.x + bodyR * 0.5f, c.y + bodyR, false);
     g.setGradientFill(metalGrad);
     g.fillEllipse(c.x - bodyR, c.y - bodyR, bodyR * 2.0f, bodyR * 2.0f);
-    g.setColour(juce::Colour(0xff8ea0b6));
+    g.setColour(t.knobRim);
     g.drawEllipse(c.x - bodyR, c.y - bodyR, bodyR * 2.0f, bodyR * 2.0f, 1.2f);
 
     const float capR = bodyR * 0.78f;
-    juce::ColourGradient capGrad(juce::Colour(0xff26324a), c.x, c.y - capR,
-                                 juce::Colour(0xff0b111d), c.x, c.y + capR, false);
+    juce::ColourGradient capGrad(t.capHi, c.x, c.y - capR,
+                                 t.capLo, c.x, c.y + capR, false);
     g.setGradientFill(capGrad);
     g.fillEllipse(c.x - capR, c.y - capR, capR * 2.0f, capR * 2.0f);
     g.setColour(juce::Colour(0xff05080f));
@@ -304,7 +439,7 @@ void MageLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, i
     juce::Path pointer;
     const float pw = juce::jmax(2.0f, bodyR * 0.11f);
     pointer.addRoundedRectangle(-pw * 0.5f, -bodyR * 0.92f, pw, bodyR * 0.5f, pw * 0.5f);
-    const auto pointerColour = hasAccent ? accent.brighter(0.4f) : juce::Colour(0xffff8ce0);
+    const auto pointerColour = hasAccent ? accent.brighter(0.4f) : pink.brighter(0.15f);
     g.setColour(pointerColour.withAlpha(0.25f));
     g.fillPath(pointer, juce::AffineTransform::scale(1.8f, 1.05f).rotated(angle).translated(c.x, c.y));
     g.setColour(pointerColour);
@@ -313,6 +448,7 @@ void MageLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, i
 
 void MageLookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& b, bool highlighted, bool)
 {
+    useThemeOf(b);
     const auto accent = accentOf(b, cyan);
     const bool on = b.getToggleState();
     auto r = b.getLocalBounds().toFloat();
@@ -324,7 +460,7 @@ void MageLookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& b,
         g.setColour(accent.withAlpha(0.25f));
         g.fillEllipse(lc.x - led, lc.y - led, led * 2.0f, led * 2.0f);
     }
-    g.setColour(on ? accent : juce::Colour(0xff283245));
+    g.setColour(on ? accent : currentTheme().ledOff);
     g.fillEllipse(lc.x - led * 0.45f, lc.y - led * 0.45f, led * 0.9f, led * 0.9f);
     g.setColour(on ? accent.brighter(0.5f) : muted.withAlpha(highlighted ? 0.8f : 0.45f));
     g.drawEllipse(lc.x - led * 0.62f, lc.y - led * 0.62f, led * 1.24f, led * 1.24f, 1.2f);
@@ -337,9 +473,10 @@ void MageLookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& b,
 void MageLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& b, const juce::Colour&,
                                            bool highlighted, bool down)
 {
+    useThemeOf(b);
     auto r = b.getLocalBounds().toFloat().reduced(0.5f);
     const auto accent = b.findColour(juce::TextButton::textColourOffId);
-    g.setColour(juce::Colour(0xff0c1425).brighter(down ? 0.15f : highlighted ? 0.08f : 0.0f));
+    g.setColour(currentTheme().control.brighter(down ? 0.15f : highlighted ? 0.08f : 0.0f));
     g.fillRoundedRectangle(r, 6.0f);
     g.setColour(accent.withAlpha(b.isEnabled() ? (highlighted ? 0.95f : 0.6f) : 0.2f));
     g.drawRoundedRectangle(r, 6.0f, 1.2f);
@@ -352,6 +489,7 @@ juce::Font MageLookAndFeel::getTextButtonFont(juce::TextButton&, int h)
 
 void MageLookAndFeel::drawComboBox(juce::Graphics& g, int w, int h, bool, int, int, int, int, juce::ComboBox& box)
 {
+    useThemeOf(box);
     auto r = juce::Rectangle<float>(0, 0, (float)w, (float)h).reduced(0.5f);
     g.setColour(box.findColour(juce::ComboBox::backgroundColourId));
     g.fillRoundedRectangle(r, 8.0f);
@@ -401,6 +539,12 @@ Knob::Knob(juce::AudioProcessorValueTreeState& state, const juce::String& paramI
     }
 }
 
+void Knob::setAccent(juce::Colour accent)
+{
+    slider.getProperties().set("accent", static_cast<juce::int64>(accent.getARGB()));
+    repaint();
+}
+
 void Knob::resized()
 {
     auto r = getLocalBounds();
@@ -410,6 +554,7 @@ void Knob::resized()
 
 void Knob::paint(juce::Graphics& g)
 {
+    useThemeOf(*this);
     const int captionH = juce::jlimit(16, 24, (int)(getHeight() * 0.17f));
     auto area = getLocalBounds().removeFromBottom(captionH).toFloat();
     const bool live = slider.isMouseOverOrDragging() || isMouseOver(true);
@@ -436,15 +581,23 @@ Footswitch::Footswitch(juce::AudioProcessorValueTreeState& state, const juce::St
 void Footswitch::mouseDown(const juce::MouseEvent&)
 {
     pressed = true;
+    const bool momentary = isMomentary && isMomentary();
     if (attachment != nullptr)
-        attachment->setValueAsCompleteGesture(on ? 0.0f : 1.0f);
+        attachment->setValueAsCompleteGesture(momentary ? 1.0f : (on ? 0.0f : 1.0f));
     repaint();
 }
 
-void Footswitch::mouseUp(const juce::MouseEvent&) { pressed = false; repaint(); }
+void Footswitch::mouseUp(const juce::MouseEvent&)
+{
+    pressed = false;
+    if (isMomentary && isMomentary() && attachment != nullptr)
+        attachment->setValueAsCompleteGesture(0.0f);
+    repaint();
+}
 
 void Footswitch::paint(juce::Graphics& g)
 {
+    useThemeOf(*this);
     auto r = getLocalBounds().toFloat();
     // LED (top)
     const float ledR = juce::jmin(8.0f, r.getWidth() * 0.1f);
@@ -455,7 +608,7 @@ void Footswitch::paint(juce::Graphics& g)
         g.setGradientFill(halo);
         g.fillEllipse(lc.x - ledR * 3.0f, lc.y - ledR * 3.0f, ledR * 6.0f, ledR * 6.0f);
     }
-    g.setColour(on ? accent : juce::Colour(0xff2b3344));
+    g.setColour(on ? accent : currentTheme().ledOff);
     g.fillEllipse(lc.x - ledR * 0.75f, lc.y - ledR * 0.75f, ledR * 1.5f, ledR * 1.5f);
     g.setColour(on ? accent.brighter(0.6f) : juce::Colour(0xff69758a));
     g.drawEllipse(lc.x - ledR, lc.y - ledR, ledR * 2.0f, ledR * 2.0f, 1.4f);
@@ -470,7 +623,7 @@ void Footswitch::paint(juce::Graphics& g)
     const float d = juce::jmin(sw.getWidth(), sw.getHeight()) * 0.92f;
     const auto c = sw.getCentre();
     const float press = pressed ? 1.5f : 0.0f;
-    g.setColour(juce::Colour(0xff02050b));
+    g.setColour(currentTheme().screwHole);
     g.fillEllipse(c.x - d * 0.5f, c.y - d * 0.5f, d, d);
     const float nutD = d * 0.86f;
     juce::ColourGradient nut(juce::Colour(0xffb8c6d8), c.x - nutD * 0.4f, c.y - nutD * 0.5f,
@@ -496,6 +649,12 @@ LedToggle::LedToggle(juce::AudioProcessorValueTreeState& state, const juce::Stri
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
 }
 
+void LedToggle::setAccent(juce::Colour accent)
+{
+    getProperties().set("accent", static_cast<juce::int64>(accent.getARGB()));
+    repaint();
+}
+
 // ---------------------------------------------------------------------------
 void LevelMeter::setLevel(float linearPeak)
 {
@@ -509,6 +668,7 @@ void LevelMeter::setLevel(float linearPeak)
 
 void LevelMeter::paint(juce::Graphics& g)
 {
+    useThemeOf(*this);
     auto r = getLocalBounds().toFloat();
     constexpr int segments = 24;
     const float gap = 2.0f;
@@ -618,6 +778,15 @@ void MagicFrieze::timerCallback()
 }
 
 void MagicFrieze::paint(juce::Graphics& g)
+{
+    useThemeOf(*this);
+    if (currentTheme().fae)
+        paintVine(g);
+    else
+        paintInscription(g);
+}
+
+void MagicFrieze::paintInscription(juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat();
     const float cy = r.getCentreY();
@@ -751,6 +920,224 @@ void MagicFrieze::paint(juce::Graphics& g)
 }
 
 // ---------------------------------------------------------------------------
+// Fae frieze: two entwined vines drifting slowly sideways, swaying leaves, a few
+// blossoms and curling tendrils, with fireflies blinking around them.
+void MagicFrieze::paintVine(juce::Graphics& g)
+{
+    const auto r = getLocalBounds().toFloat();
+    const float cy = r.getCentreY();
+    constexpr float twoPi = juce::MathConstants<float>::twoPi;
+    const float amp = r.getHeight() * 0.17f;
+    const float wavelength = 300.0f;
+    const float drift = phase * 9.0f;
+    const float spacing = 34.0f;
+
+    auto vineY = [&](float x, int vine)
+    {
+        return cy + amp * std::sin(twoPi * (x + drift) / wavelength + (vine == 0 ? 0.0f : juce::MathConstants<float>::pi));
+    };
+    auto vineSlope = [&](float x, int vine)
+    {
+        return amp * twoPi / wavelength * std::cos(twoPi * (x + drift) / wavelength + (vine == 0 ? 0.0f : juce::MathConstants<float>::pi));
+    };
+    auto edgeFade = [&](float x)
+    {
+        const float d = juce::jmin(x - r.getX(), r.getRight() - x);
+        return juce::jlimit(0.0f, 1.0f, d / 90.0f);
+    };
+    auto tintAt = [&](float x)
+    {
+        const float t = juce::jlimit(0.0f, 1.0f, (x - r.getX()) / r.getWidth());
+        return cyan.interpolatedWith(blue, juce::jmin(1.0f, t * 2.0f))
+                   .interpolatedWith(pink, juce::jmax(0.0f, t * 2.0f - 1.0f));
+    };
+    auto hash = [](int n) { return std::fmod(std::abs(std::sin((float)n * 12.9898f) * 43758.5453f), 1.0f); };
+    auto gradientFor = [&](float alpha)
+    {
+        juce::ColourGradient grad(cyan.withAlpha(0.0f), r.getX(), cy, pink.withAlpha(0.0f), r.getRight(), cy, false);
+        grad.addColour(0.07, cyan.withAlpha(alpha));
+        grad.addColour(0.5, blue.withAlpha(alpha));
+        grad.addColour(0.93, pink.withAlpha(alpha));
+        return grad;
+    };
+
+    // ---- Moonlight haze behind the vines ----
+    {
+        juce::ColourGradient haze(blue.withAlpha(0.0f), r.getX(), cy, blue.withAlpha(0.0f), r.getRight(), cy, false);
+        haze.addColour(0.5, ivory.withAlpha(0.05f));
+        g.setGradientFill(haze);
+        g.fillRoundedRectangle(r.reduced(0.0f, r.getHeight() * 0.18f), r.getHeight() * 0.3f);
+    }
+
+    // ---- The two vines ----
+    for (int vine = 0; vine < 2; ++vine)
+    {
+        juce::Path p;
+        p.startNewSubPath(r.getX(), vineY(r.getX(), vine));
+        for (float x = r.getX() + 4.0f; x <= r.getRight() + 0.1f; x += 4.0f)
+            p.lineTo(x, vineY(x, vine));
+        g.setGradientFill(gradientFor(vine == 0 ? 0.14f : 0.09f));
+        g.strokePath(p, juce::PathStrokeType(5.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setGradientFill(gradientFor(vine == 0 ? 0.85f : 0.55f));
+        g.strokePath(p, juce::PathStrokeType(vine == 0 ? 1.7f : 1.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+
+    // ---- Leaves, blossoms and tendrils, fixed to the vines as they drift ----
+    const int first = (int)std::floor((r.getX() + drift) / spacing) - 1;
+    const int last = (int)std::ceil((r.getRight() + drift) / spacing) + 1;
+    for (int n = first; n <= last; ++n)
+    {
+        const float x = (float)n * spacing - drift;
+        const float fade = edgeFade(x);
+        if (fade <= 0.0f)
+            continue;
+        const int vine = (n & 1);
+        const float y = vineY(x, vine);
+        const float along = std::atan(vineSlope(x, vine));
+        const auto tint = tintAt(x);
+
+        if (((n % 7) + 7) % 7 == 3)
+        {
+            // Blossom: five petals around a moonlit centre, turning slowly.
+            const float spin = phase * 0.3f + (float)n;
+            const auto petal = (n % 2 == 0 ? pink : blue);
+            for (int k = 0; k < 5; ++k)
+            {
+                const float a = spin + (float)k * twoPi / 5.0f;
+                juce::Path petalPath;
+                petalPath.addEllipse(-1.8f, -5.2f, 3.6f, 5.2f);
+                petalPath.applyTransform(juce::AffineTransform::rotation(a).translated(x, y));
+                g.setColour(petal.withAlpha(0.75f * fade));
+                g.fillPath(petalPath);
+            }
+            g.setColour(ivory.withAlpha(0.9f * fade));
+            g.fillEllipse(x - 1.6f, y - 1.6f, 3.2f, 3.2f);
+            continue;
+        }
+
+        const float side = ((n / 2) % 2 == 0) ? 1.0f : -1.0f;
+        if (((n % 11) + 11) % 11 == 6)
+        {
+            // Tendril: a little spiral curling away from the vine.
+            juce::Path curl;
+            const float base = along + side * 1.2f;
+            curl.startNewSubPath(x, y);
+            for (float t = 0.05f; t <= 1.0f; t += 0.05f)
+            {
+                const float a = base + side * t * 4.2f;
+                const float rad = 9.0f * (1.0f - t * 0.75f) * t;
+                curl.lineTo(x + std::cos(base) * t * 9.0f + std::cos(a) * rad * 0.6f,
+                            y + std::sin(base) * t * 9.0f + std::sin(a) * rad * 0.6f);
+            }
+            g.setColour(tint.withAlpha(0.7f * fade));
+            g.strokePath(curl, juce::PathStrokeType(1.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            continue;
+        }
+
+        // Leaf: an almond on a short stem, swaying gently.
+        const float sway = 0.12f * std::sin(phase * 1.3f + (float)n * 0.9f);
+        const float angle = along + side * (0.95f + sway);
+        const float len = 8.0f + 4.0f * hash(n);
+        juce::Path leaf;
+        leaf.startNewSubPath(0.0f, 0.0f);
+        leaf.quadraticTo(len * 0.5f, -len * 0.36f, len, 0.0f);
+        leaf.quadraticTo(len * 0.5f, len * 0.36f, 0.0f, 0.0f);
+        leaf.closeSubPath();
+        const auto tf = juce::AffineTransform::rotation(angle).translated(x, y);
+        leaf.applyTransform(tf);
+        g.setColour(tint.withAlpha(0.6f * fade));
+        g.fillPath(leaf);
+        g.setColour(tint.withAlpha(0.9f * fade));
+        g.strokePath(leaf, juce::PathStrokeType(0.9f));
+        juce::Path rib;
+        rib.startNewSubPath(0.0f, 0.0f);
+        rib.lineTo(len * 0.8f, 0.0f);
+        rib.applyTransform(tf);
+        g.setColour(ivory.withAlpha(0.35f * fade));
+        g.strokePath(rib, juce::PathStrokeType(0.6f));
+    }
+
+    // ---- Fireflies ----
+    for (int i = 0; i < 18; ++i)
+    {
+        const float speed = 5.0f + (float)(i % 5) * 2.5f;
+        const float x = r.getX() + 20.0f + std::fmod((float)i * 97.3f + phase * speed, r.getWidth() - 40.0f);
+        const float y = cy + r.getHeight() * 0.42f * std::sin(phase * (0.6f + 0.07f * (float)i) + (float)i * 2.1f);
+        const float blink = std::pow(0.5f + 0.5f * std::sin(phase * (1.1f + 0.17f * (float)i) + (float)i), 3.0f);
+        const float fade = edgeFade(x);
+        const auto c = (i % 3 == 0) ? cyan : blue;
+        const float glowR = 2.5f + 5.0f * blink;
+        juce::ColourGradient halo(c.withAlpha(0.55f * blink * fade), x, y, c.withAlpha(0.0f), x + glowR, y, true);
+        g.setGradientFill(halo);
+        g.fillEllipse(x - glowR, y - glowR, glowR * 2.0f, glowR * 2.0f);
+        g.setColour(ivory.withAlpha((0.25f + 0.75f * blink) * fade));
+        g.fillEllipse(x - 1.1f, y - 1.1f, 2.2f, 2.2f);
+    }
+}
+
+// ---------------------------------------------------------------------------
+ChannelSwitch::ChannelSwitch(juce::AudioProcessorValueTreeState& state, const juce::String& paramID)
+{
+    if (auto* param = state.getParameter(paramID))
+    {
+        attachment = std::make_unique<juce::ParameterAttachment>(*param,
+            [this](float v) { channel = juce::roundToInt(v); repaint(); }, state.undoManager);
+        attachment->sendInitialUpdate();
+    }
+    setTooltip("Amp channel: Arcane high-gain or Fae clean");
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+}
+
+void ChannelSwitch::mouseDown(const juce::MouseEvent& e)
+{
+    const int wanted = e.x < getWidth() / 2 ? 0 : 1;
+    if (attachment != nullptr && wanted != channel)
+        attachment->setValueAsCompleteGesture((float)wanted);
+}
+
+void ChannelSwitch::paint(juce::Graphics& g)
+{
+    useThemeOf(*this);
+    const auto r = getLocalBounds().toFloat().reduced(1.0f);
+    const float radius = r.getHeight() * 0.5f;
+    g.setColour(currentTheme().screen.withAlpha(0.9f));
+    g.fillRoundedRectangle(r, radius);
+
+    const auto mouse = getMouseXYRelative();
+    const bool hover = isMouseOver(true);
+    // Each half previews its own channel's colours.
+    const juce::Colour accents[] = { arcaneTheme().cyan.interpolatedWith(arcaneTheme().pink, 0.5f),
+                                     faeTheme().cyan.interpolatedWith(faeTheme().blue, 0.35f) };
+    const char* labels[] = { "ARCANE  HIGH-GAIN", "FAE  CLEAN" };
+    for (int half = 0; half < 2; ++half)
+    {
+        auto seg = r.withWidth(r.getWidth() * 0.5f).translated(half == 0 ? 0.0f : r.getWidth() * 0.5f, 0.0f).reduced(2.0f);
+        const bool active = channel == half;
+        const bool hot = hover && !active && seg.contains(mouse.toFloat());
+        if (active)
+        {
+            juce::ColourGradient fill(accents[half].withAlpha(0.32f), seg.getX(), seg.getY(),
+                                      accents[half].withAlpha(0.12f), seg.getX(), seg.getBottom(), false);
+            g.setGradientFill(fill);
+            g.fillRoundedRectangle(seg, seg.getHeight() * 0.5f);
+            g.setColour(accents[half].withAlpha(0.9f));
+            g.drawRoundedRectangle(seg, seg.getHeight() * 0.5f, 1.2f);
+        }
+        else if (hot)
+        {
+            g.setColour(accents[half].withAlpha(0.10f));
+            g.fillRoundedRectangle(seg, seg.getHeight() * 0.5f);
+        }
+        const Rune rune = half == 0 ? Rune::gain : Rune::shimmer;
+        const auto font11 = font(11.0f, true, 0.3f);
+        drawRuneTitle(g, rune, labels[half], seg, font11,
+                      active ? ivory : (hot ? ivory.withAlpha(0.8f) : muted.withAlpha(0.75f)), 14.0f);
+    }
+    g.setColour(muted.withAlpha(0.35f));
+    g.drawRoundedRectangle(r, radius, 1.0f);
+}
+
+// ---------------------------------------------------------------------------
 IconButton::IconButton(Icon i, const juce::String& tip) : juce::Button(tip), icon(i)
 {
     setTooltip(tip);
@@ -759,8 +1146,9 @@ IconButton::IconButton(Icon i, const juce::String& tip) : juce::Button(tip), ico
 
 void IconButton::paintButton(juce::Graphics& g, bool highlighted, bool down)
 {
+    useThemeOf(*this);
     auto r = getLocalBounds().toFloat().reduced(1.0f);
-    g.setColour(juce::Colour(0xff0c1425).brighter(down ? 0.15f : highlighted ? 0.07f : 0.0f));
+    g.setColour(currentTheme().control.brighter(down ? 0.15f : highlighted ? 0.07f : 0.0f));
     g.fillRoundedRectangle(r, 7.0f);
     g.setColour(blue.withAlpha(isEnabled() ? (highlighted ? 0.9f : 0.5f) : 0.15f));
     g.drawRoundedRectangle(r, 7.0f, 1.1f);

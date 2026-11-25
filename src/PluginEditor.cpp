@@ -13,9 +13,12 @@ namespace layout
     const R pedals[] = { { 20.0f, 492.0f, 300.0f, 388.0f }, { 340.0f, 492.0f, 300.0f, 388.0f },
                          { 660.0f, 492.0f, 300.0f, 388.0f }, { 980.0f, 492.0f, 300.0f, 388.0f } };
     const R output { 1300.0f, 492.0f, 280.0f, 388.0f };
-    const juce::Colour pedalAccent[] = { violet, pink, cyan, blue };
-    const char* pedalTitles[] = { "OCTAVE", "DRIVE", "DELAY", "REVERB" };
-    const char* pedalTaglines[] = { "SUB / UPPER OCTAVE", "MID-FOCUSED OVERDRIVE", "WARM ANALOG ECHO", "ETHEREAL SPACE" };
+    const char* pedalTitles[2][4] = { { "OCTAVE", "DRIVE", "DELAY", "REVERB" },
+                                      { "SHIMMER", "FREEZE", "DELAY", "REVERB" } };
+    const char* pedalTaglines[2][4] = { { "SUB / UPPER OCTAVE", "MID-FOCUSED OVERDRIVE", "WARM ANALOG ECHO", "ETHEREAL SPACE" },
+                                        { "OCTAVE-UP HALO", "INFINITE SUSTAIN", "MOONLIT ECHO", "FAERIE GLADE" } };
+    const Rune pedalRunes[2][4] = { { Rune::octave, Rune::drive, Rune::delay, Rune::reverb },
+                                    { Rune::shimmer, Rune::freeze, Rune::delay, Rune::reverb } };
     const float ampKnobX[] = { 65.0f, 245.0f, 385.0f, 525.0f, 705.0f, 845.0f, 985.0f };
 
     juce::Rectangle<int> i(float x, float y, float w, float h) { return R(x, y, w, h).toNearestInt(); }
@@ -42,7 +45,15 @@ MainPanel::MainPanel(MageAudioProcessor& p)
       reverbTone(p.state, "reverbTone", "TONE", blue), reverbMix(p.state, "reverbMix", "MIX", blue),
       octaveSwitch(p.state, "octaveEnabled", violet), driveSwitch(p.state, "driveEnabled", pink),
       delaySwitch(p.state, "delayEnabled", cyan), reverbSwitch(p.state, "reverbEnabled", blue),
-      output(p.state, "output", "VOLUME", pink)
+      output(p.state, "output", "VOLUME", pink),
+      channelSwitch(p.state, "ampChannel"),
+      shimmerMix(p.state, "shimmerMix", "MIX", violet), shimmerDecay(p.state, "shimmerDecay", "DECAY", violet),
+      shimmerAmount(p.state, "shimmerAmount", "SHIMMER", violet), shimmerTone(p.state, "shimmerTone", "TONE", violet),
+      shimmerFifth(p.state, "shimmerFifth", "FIFTH", violet),
+      freezeMix(p.state, "freezeMix", "MIX", cyan), freezeFade(p.state, "freezeFade", "FADE", cyan),
+      freezeTone(p.state, "freezeTone", "TONE", cyan),
+      freezeMomentary(p.state, "freezeMomentary", "MOMENTARY", cyan),
+      shimmerSwitch(p.state, "shimmerEnabled", violet), freezeSwitch(p.state, "freezeEnabled", cyan)
 {
     setLookAndFeel(&lnf);
     setSize(designWidth, designHeight);
@@ -57,8 +68,14 @@ MainPanel::MainPanel(MageAudioProcessor& p)
              &drive, &driveTone, &driveLevel, &driveBoost,
              &delayTime, &delayDivision, &delayFeedback, &delayMix, &delaySync,
              &reverbDecay, &reverbSize, &reverbTone, &reverbMix,
-             &octaveSwitch, &driveSwitch, &delaySwitch, &reverbSwitch, &output })
+             &octaveSwitch, &driveSwitch, &delaySwitch, &reverbSwitch, &output,
+             &channelSwitch, &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone, &shimmerFifth,
+             &freezeMix, &freezeFade, &freezeTone, &freezeMomentary, &shimmerSwitch, &freezeSwitch })
         addAndMakeVisible(c);
+
+    shimmerFifth.setTooltip("Shift the shimmer up a fifth instead of an octave");
+    freezeMomentary.setTooltip("Freeze only while the footswitch is held");
+    freezeSwitch.isMomentary = [this] { return processor.state.getRawParameterValue("freezeMomentary")->load() > 0.5f; };
 
     // --- Presets ---
     presetBox.setJustificationType(juce::Justification::centredLeft);
@@ -106,6 +123,14 @@ MainPanel::MainPanel(MageAudioProcessor& p)
         syncWatcher->sendInitialUpdate();
     }
 
+    // --- Channel: swaps the first two pedals and the whole theme ---
+    if (auto* ch = p.state.getParameter("ampChannel"))
+    {
+        channelWatcher = std::make_unique<juce::ParameterAttachment>(*ch,
+            [this](float v) { setChannel(v > 0.5f); }, nullptr);
+        channelWatcher->sendInitialUpdate();
+    }
+
     refresh();
 }
 
@@ -120,6 +145,59 @@ void MainPanel::updateDelayTimeVisibility(bool sync)
 {
     delayTime.setVisible(!sync);
     delayDivision.setVisible(sync);
+}
+
+juce::Colour MainPanel::pedalAccent(int slot) const
+{
+    const auto& t = *theme;
+    const juce::Colour arcane[] = { t.violet, t.pink, t.cyan, t.blue };
+    const juce::Colour fae[] = { t.violet, t.cyan, t.pink, t.blue };
+    return (faeChannel ? fae : arcane)[juce::jlimit(0, 3, slot)];
+}
+
+void MainPanel::setChannel(bool fae)
+{
+    faeChannel = fae;
+    theme = fae ? &faeTheme() : &arcaneTheme();
+    for (juce::Component* c : std::initializer_list<juce::Component*> {
+             &octaveMix, &octaveTone, &octaveLevel, &octaveDown, &octaveSwitch,
+             &drive, &driveTone, &driveLevel, &driveBoost, &driveSwitch })
+        c->setVisible(!fae);
+    for (juce::Component* c : std::initializer_list<juce::Component*> {
+             &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone, &shimmerFifth, &shimmerSwitch,
+             &freezeMix, &freezeFade, &freezeTone, &freezeMomentary, &freezeSwitch })
+        c->setVisible(fae);
+    applyTheme();
+}
+
+void MainPanel::applyTheme()
+{
+    useTheme(*theme);
+    lnf.applyTheme(*theme);
+    for (auto* k : { &gateThreshold, &gateRelease }) k->setAccent(cyan);
+    for (auto* t : { &gateOn, &gatePost }) t->setAccent(cyan);
+    for (auto* k : { &lowCut, &highCut, &output }) k->setAccent(pink);
+    const auto a0 = pedalAccent(0), a1 = pedalAccent(1), a2 = pedalAccent(2), a3 = pedalAccent(3);
+    for (auto* k : { &octaveMix, &octaveTone, &octaveLevel, &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone }) k->setAccent(a0);
+    for (auto* k : { &drive, &driveTone, &driveLevel, &freezeMix, &freezeFade, &freezeTone }) k->setAccent(a1);
+    for (auto* k : { &delayTime, &delayDivision, &delayFeedback, &delayMix }) k->setAccent(a2);
+    for (auto* k : { &reverbDecay, &reverbSize, &reverbTone, &reverbMix }) k->setAccent(a3);
+    octaveDown.setAccent(a0); shimmerFifth.setAccent(a0);
+    driveBoost.setAccent(a1); freezeMomentary.setAccent(a1);
+    delaySync.setAccent(a2);
+    octaveSwitch.setAccent(a0); shimmerSwitch.setAccent(a0);
+    driveSwitch.setAccent(a1); freezeSwitch.setAccent(a1);
+    delaySwitch.setAccent(a2); reverbSwitch.setAccent(a3);
+    inMeter.setColours(blue, cyan);
+    outMeter.setColours(violet, pink);
+    outMeterTall.setColours(violet, pink);
+    loadIR.setColour(juce::TextButton::textColourOffId, pink);
+    bypassIR.setColour(juce::TextButton::textColourOffId, muted);
+    presetBox.setColour(juce::ComboBox::backgroundColourId, theme->control);
+    presetBox.setColour(juce::ComboBox::outlineColourId, blue.withAlpha(0.75f));
+    presetBox.setColour(juce::ComboBox::textColourId, ivory);
+    presetBox.setColour(juce::ComboBox::arrowColourId, muted);
+    repaint();
 }
 
 void MainPanel::rebuildPresetList()
@@ -219,6 +297,9 @@ void MainPanel::refresh()
 // ---------------------------------------------------------------------------
 void MainPanel::paint(juce::Graphics& g)
 {
+    useTheme(*theme);
+    const auto& T = *theme;
+    const bool fae = T.fae;
     const float W = (float)designWidth, H = (float)designHeight;
     g.fillAll(bg);
     juce::ColourGradient aura(cyan.withAlpha(0.10f), 0.0f, 0.0f, pink.withAlpha(0.09f), W, H, false);
@@ -226,18 +307,18 @@ void MainPanel::paint(juce::Graphics& g)
     g.fillRect(0.0f, 0.0f, W, H);
 
     // ---- Header ----
-    g.setColour(juce::Colour(0xff0a0f1c));
+    g.setColour(T.header);
     g.fillRect(0.0f, 0.0f, W, 78.0f);
-    g.setColour(juce::Colour(0xff24304a));
+    g.setColour(T.headerLine);
     g.drawLine(0.0f, 78.0f, W, 78.0f, 1.0f);
-    drawCrest(g, 20.0f, 4.0f, 70.0f);
+    drawLogo(g, Logo::mark, { 20.0f, 4.0f, 70.0f, 70.0f });
     g.setColour(cyan.withAlpha(0.85f));
     g.setFont(font(11.0f, true, 0.25f));
-    g.drawText("ARCANE TONE SYSTEM", 100.0f, 24.0f, 180.0f, 16.0f, juce::Justification::centredLeft);
+    g.drawText(fae ? "FAE TONE SYSTEM" : "ARCANE TONE SYSTEM", 100.0f, 24.0f, 180.0f, 16.0f, juce::Justification::centredLeft);
     g.setColour(muted);
     g.setFont(font(10.0f, true, 0.15f));
-    g.drawText("HIGH-GAIN AMPLIFIER  v" + juce::String(JucePlugin_VersionString), 100.0f, 42.0f, 190.0f, 14.0f,
-               juce::Justification::centredLeft);
+    g.drawText(juce::String(fae ? "CLEAN AMPLIFIER  v" : "HIGH-GAIN AMPLIFIER  v") + JucePlugin_VersionString,
+               100.0f, 42.0f, 190.0f, 14.0f, juce::Justification::centredLeft);
 
     g.setFont(font(15.0f, true, 0.1f));
     g.setColour(cyan);
@@ -247,24 +328,37 @@ void MainPanel::paint(juce::Graphics& g)
 
     // ---- Horizon wordmark ----
     // The brush "Mage" wordmark sits on the horizon line; the lines and etchings stop short of it.
-    static const juce::Image wordmark = juce::ImageCache::getFromMemory(BinaryData::mage_wordmark_png,
-                                                                        BinaryData::mage_wordmark_pngSize);
     const float markH = 90.0f;
-    const float markW = wordmark.isValid() ? markH * (float)wordmark.getWidth() / (float)wordmark.getHeight() : 120.0f;
+    const float markW = markH * logoAspect(Logo::wordmark);
     const float gapL = W * 0.5f - markW * 0.5f - 6.0f, gapR = W * 0.5f + markW * 0.5f + 6.0f;
 
-    g.setColour(juce::Colour(0xff14213a).withAlpha(0.55f));
     for (int n = 0; n < 17; ++n)
     {
-        const float x = 18.0f + n * 96.0f;
+        const float x = 18.0f + (float)n * 96.0f;
         if (x + 56.0f > gapL - 10.0f && x < gapR + 10.0f)
             continue;
         juce::Path etching;
-        etching.startNewSubPath(x, 112.0f);
-        etching.lineTo(x + 28.0f, 88.0f);
-        etching.lineTo(x + 56.0f, 112.0f);
-        etching.lineTo(x + 28.0f, 136.0f);
-        etching.closeSubPath();
+        if (fae)
+        {
+            // Little four-point stars, alternating large and small.
+            const float cx = x + 28.0f, cy = 112.0f, rr = (n % 2 == 0) ? 15.0f : 8.0f;
+            etching.startNewSubPath(cx, cy - rr);
+            etching.quadraticTo(cx, cy, cx + rr, cy);
+            etching.quadraticTo(cx, cy, cx, cy + rr);
+            etching.quadraticTo(cx, cy, cx - rr, cy);
+            etching.quadraticTo(cx, cy, cx, cy - rr);
+            etching.closeSubPath();
+            g.setColour(T.etching.withAlpha(0.8f));
+        }
+        else
+        {
+            etching.startNewSubPath(x, 112.0f);
+            etching.lineTo(x + 28.0f, 88.0f);
+            etching.lineTo(x + 56.0f, 112.0f);
+            etching.lineTo(x + 28.0f, 136.0f);
+            etching.closeSubPath();
+            g.setColour(T.etching.withAlpha(0.55f));
+        }
         g.strokePath(etching, juce::PathStrokeType(0.8f));
     }
     g.setColour(cyan.withAlpha(0.8f));
@@ -275,12 +369,7 @@ void MainPanel::paint(juce::Graphics& g)
     g.fillEllipse(gapL - 4.0f, 108.5f, 7.0f, 7.0f);
     g.setColour(pink);
     g.fillEllipse(gapR - 3.0f, 108.5f, 7.0f, 7.0f);
-    if (wordmark.isValid())
-    {
-        g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
-        g.drawImage(wordmark, { W * 0.5f - markW * 0.5f, 112.0f - markH * 0.5f, markW, markH },
-                    juce::RectanglePlacement::centred);
-    }
+    drawLogo(g, Logo::wordmark, { W * 0.5f - markW * 0.5f, 112.0f - markH * 0.5f, markW, markH });
 
     // ---- Noise gate ----
     {
@@ -295,7 +384,7 @@ void MainPanel::paint(juce::Graphics& g)
             g.setColour(cyan.withAlpha(0.3f));
             g.fillEllipse(led.x - 10.0f, led.y - 10.0f, 20.0f, 20.0f);
         }
-        g.setColour(gateLed ? cyan : juce::Colour(0xff2b3344));
+        g.setColour(gateLed ? cyan : T.ledOff);
         g.fillEllipse(led.x - 5.0f, led.y - 5.0f, 10.0f, 10.0f);
         g.setColour(gateLed ? cyan.brighter(0.5f) : muted.withAlpha(0.5f));
         g.drawEllipse(led.x - 7.0f, led.y - 7.0f, 14.0f, 14.0f, 1.2f);
@@ -319,14 +408,17 @@ void MainPanel::paint(juce::Graphics& g)
         caption(layout::ampKnobX[0], layout::ampKnobX[0] + 130.0f, Rune::gain, "PREAMP", cyan);
         caption(layout::ampKnobX[1], layout::ampKnobX[3] + 130.0f, Rune::equalizer, "EQUALIZER", blue);
         caption(layout::ampKnobX[4], layout::ampKnobX[6] + 130.0f, Rune::power, "POWER", pink);
-        g.setColour(juce::Colour(0xff26324a));
+        g.setColour(T.divider);
         for (float x : { 215.0f, 675.0f })
             g.drawLine(r.getX() + x, r.getY() + 66.0f, r.getX() + x, r.getY() + 250.0f, 1.0f);
 
+        // The channel switch sits in the middle of this strip.
         g.setColour(muted.withAlpha(0.8f));
         g.setFont(font(11.0f, true, 0.4f));
-        g.drawText(juce::String::fromUTF8("MAGE   \xc2\xb7   ARCANE HIGH-GAIN HEAD   \xc2\xb7   MK I"), r.getX(), r.getY() + 276.0f,
-                   r.getWidth(), 20.0f, juce::Justification::centred);
+        g.drawText(juce::String::fromUTF8("MAGE   \xc2\xb7"), r.getCentreX() - 340.0f, r.getY() + 276.0f, 110.0f, 20.0f,
+                   juce::Justification::centredRight);
+        g.drawText(juce::String::fromUTF8("\xc2\xb7   MK I"), r.getCentreX() + 230.0f, r.getY() + 276.0f, 110.0f, 20.0f,
+                   juce::Justification::centredLeft);
         for (auto pt : { r.getTopLeft().translated(26.0f, 28.0f), r.getTopRight().translated(-26.0f, 28.0f),
                          r.getBottomLeft().translated(26.0f, -28.0f), r.getBottomRight().translated(-26.0f, -28.0f) })
             drawScrew(g, pt, 9.0f, cyan);
@@ -339,7 +431,7 @@ void MainPanel::paint(juce::Graphics& g)
         drawRuneTitle(g, Rune::cabinet, "CABINET / IR", { r.getX(), r.getY() + 14.0f, r.getWidth(), 24.0f },
                       font(14.0f, true, 0.1f), ivory, 20.0f);
         const juce::Rectangle<float> screen(r.getX() + 16.0f, r.getY() + 46.0f, r.getWidth() - 32.0f, 58.0f);
-        g.setColour(juce::Colour(0xff05070f));
+        g.setColour(T.screen);
         g.fillRoundedRectangle(screen, 6.0f);
         g.setColour(pink.withAlpha(0.35f));
         g.drawRoundedRectangle(screen, 6.0f, 1.2f);
@@ -357,16 +449,17 @@ void MainPanel::paint(juce::Graphics& g)
     for (int n = 0; n < 4; ++n)
     {
         const auto r = layout::pedals[n];
-        const auto a = layout::pedalAccent[n];
+        const auto a = pedalAccent(n);
+        const int ch = fae ? 1 : 0;
+        const Rune rune = layout::pedalRunes[ch][n];
         drawPanel(g, r, a, 17.0f);
-        const Rune pedalRunes[] = { Rune::octave, Rune::drive, Rune::delay, Rune::reverb };
-        drawRuneTitle(g, pedalRunes[n], layout::pedalTitles[n], { r.getX(), r.getY() + 16.0f, r.getWidth(), 32.0f },
+        drawRuneTitle(g, rune, layout::pedalTitles[ch][n], { r.getX(), r.getY() + 16.0f, r.getWidth(), 32.0f },
                       font(24.0f, true, 0.18f), a, 30.0f);
         g.setColour(muted);
         g.setFont(font(9.5f, true, 0.25f));
-        g.drawText(layout::pedalTaglines[n], r.getX(), r.getY() + 48.0f, r.getWidth(), 14.0f, juce::Justification::centred);
-        drawSectionRune(g, pedalRunes[n], { r.getX() + 24.0f, r.getBottom() - 72.0f, 38.0f, 38.0f }, 0.35f, a);
-        drawSectionRune(g, pedalRunes[n], { r.getRight() - 62.0f, r.getBottom() - 72.0f, 38.0f, 38.0f }, 0.35f, a);
+        g.drawText(layout::pedalTaglines[ch][n], r.getX(), r.getY() + 48.0f, r.getWidth(), 14.0f, juce::Justification::centred);
+        drawSectionRune(g, rune, { r.getX() + 24.0f, r.getBottom() - 72.0f, 38.0f, 38.0f }, 0.35f, a);
+        drawSectionRune(g, rune, { r.getRight() - 62.0f, r.getBottom() - 72.0f, 38.0f, 38.0f }, 0.35f, a);
         for (auto pt : { r.getTopLeft().translated(16.0f, 16.0f), r.getTopRight().translated(-16.0f, 16.0f),
                          r.getBottomLeft().translated(16.0f, -16.0f), r.getBottomRight().translated(-16.0f, -16.0f) })
             drawScrew(g, pt, 5.0f, a);
@@ -375,7 +468,7 @@ void MainPanel::paint(juce::Graphics& g)
     for (float x : { 320.0f, 640.0f, 960.0f, 1280.0f })
     {
         const juce::Rectangle<float> cable(x - 8.0f, 492.0f + 182.0f, 36.0f, 11.0f);
-        g.setColour(juce::Colour(0xff0b1020));
+        g.setColour(T.header);
         g.fillRoundedRectangle(cable.expanded(1.5f), 5.0f);
         juce::ColourGradient glow(cyan.withAlpha(0.9f), cable.getX(), 0.0f, pink.withAlpha(0.9f), cable.getRight(), 0.0f, false);
         g.setGradientFill(glow);
@@ -417,6 +510,7 @@ void MainPanel::resized()
         Knob* knobs[] = { &gain, &bass, &mid, &treble, &presence, &depth, &master };
         for (int n = 0; n < 7; ++n)
             knobs[n]->setBounds(i(r.getX() + layout::ampKnobX[n], r.getY() + 80.0f, 130.0f, 172.0f));
+        channelSwitch.setBounds(i(r.getCentreX() - 215.0f, r.getY() + 272.0f, 430.0f, 28.0f));
     }
 
     // Gate
@@ -461,9 +555,17 @@ void MainPanel::resized()
     placeToggle(layout::pedals[0], octaveDown);
     placeSwitch(layout::pedals[0], octaveSwitch);
 
+    placeRow(layout::pedals[0], { &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone });
+    placeToggle(layout::pedals[0], shimmerFifth);
+    placeSwitch(layout::pedals[0], shimmerSwitch);
+
     placeRow(layout::pedals[1], { &drive, &driveTone, &driveLevel });
     placeToggle(layout::pedals[1], driveBoost);
     placeSwitch(layout::pedals[1], driveSwitch);
+
+    placeRow(layout::pedals[1], { &freezeMix, &freezeFade, &freezeTone });
+    placeToggle(layout::pedals[1], freezeMomentary);
+    placeSwitch(layout::pedals[1], freezeSwitch);
 
     placeRow(layout::pedals[2], { &delayTime, &delayFeedback, &delayMix });
     delayDivision.setBounds(delayTime.getBounds());
@@ -499,6 +601,7 @@ MageAudioProcessorEditor::MageAudioProcessorEditor(MageAudioProcessor& p)
 
 void MageAudioProcessorEditor::paint(juce::Graphics& g)
 {
+    useTheme(panel.getTheme());
     g.fillAll(bg);
 }
 

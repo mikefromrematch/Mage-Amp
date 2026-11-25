@@ -31,6 +31,7 @@ public:
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     static const juce::StringArray& delayDivisionNames();
+    static const juce::StringArray& channelNames();   // { "Arcane", "Fae" }
 
     // Declared before `state` so it exists when the tree is built.
     juce::UndoManager undoManager;
@@ -70,6 +71,12 @@ private:
     mage::dsp::Preamp preamp;
     Biquad bass, middle, treble, presence, depth;   // run at oversampled rate
     mage::dsp::DCBlocker powerDC;
+    mage::dsp::CleanPreamp cleanPreamp;             // Fae channel (oversampled)
+    Biquad cleanPresence, cleanDepth;
+    mage::dsp::DCBlocker cleanPowerDC;
+    mage::dsp::FreezePedal freeze;                  // Fae pedals (base rate)
+    mage::dsp::ShimmerReverb shimmer;
+    bool shimmerWasEnabled = false;
     mage::dsp::CabSim cabSim;
     Biquad lowCut1, lowCut2, highCut1, highCut2;     // base rate
     juce::dsp::Convolution cabinetIR;
@@ -82,11 +89,14 @@ private:
     bool delayWasEnabled = false, reverbWasEnabled = false;
 
     juce::SmoothedValue<float> stage1Gain, stage2Gain, powerDrive;      // oversampled rate
+    juce::SmoothedValue<float> channelMix, cleanGain, cleanPower, cleanMakeup;      // oversampled rate
+    juce::SmoothedValue<float> shimmerMixS, freezeMixS;                // base rate
     juce::SmoothedValue<float> outputGain, octaveMixS, delayMixS, delayFeedbackS, delaySamplesS; // base rate
 
     // Last values used to compute filter coefficients (avoid recomputing every block).
     float lastBass = -1, lastMid = -1, lastTreble = -1, lastPresence = -1, lastDepth = -1,
-          lastLowCut = -1, lastHighCut = -1, lastDriveTone = -1, lastOctTone = -1;
+          lastLowCut = -1, lastHighCut = -1, lastDriveTone = -1, lastOctTone = -1,
+          lastCleanBass = -1, lastCleanMid = -1, lastCleanTreble = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MageAudioProcessor)
 };

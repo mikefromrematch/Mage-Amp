@@ -5,7 +5,7 @@
 
 // The whole UI is laid out on a fixed 1600x900 design canvas (MainPanel) and
 // scaled uniformly to the window, so knobs stay round and text scales too.
-class MainPanel final : public juce::Component
+class MainPanel final : public juce::Component, public mage::ui::ThemeHolder
 {
 public:
     static constexpr int designWidth = 1600, designHeight = 900;
@@ -15,6 +15,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void refresh(); // called by the editor's timer (~30 Hz)
+    const mage::ui::Theme& getTheme() const override { return *theme; }
 
 private:
     using Knob = mage::ui::Knob;
@@ -33,6 +34,9 @@ private:
     void savePresetDialog();
     void chooseCabinetIR();
     void updateDelayTimeVisibility(bool sync);
+    void setChannel(bool fae);   // swaps pedals and theme
+    void applyTheme();
+    juce::Colour pedalAccent(int slot) const;
 
     MageAudioProcessor& processor;
     mage::ui::MageLookAndFeel lnf;
@@ -70,6 +74,17 @@ private:
     Footswitch octaveSwitch, driveSwitch, delaySwitch, reverbSwitch;
     // Output
     Knob output;
+    // Fae channel: amp switch and the pedals that replace octave and drive
+    mage::ui::ChannelSwitch channelSwitch;
+    Knob shimmerMix, shimmerDecay, shimmerAmount, shimmerTone;
+    LedToggle shimmerFifth;
+    Knob freezeMix, freezeFade, freezeTone;
+    LedToggle freezeMomentary;
+    Footswitch shimmerSwitch, freezeSwitch;
+
+    const mage::ui::Theme* theme = &mage::ui::arcaneTheme();
+    bool faeChannel = false;
+    std::unique_ptr<juce::ParameterAttachment> channelWatcher;
 
     std::unique_ptr<juce::ParameterAttachment> syncWatcher;
     std::unique_ptr<juce::FileChooser> irChooser;
