@@ -229,7 +229,7 @@ void MainPanel::paint(juce::Graphics& g)
     g.fillRect(0.0f, 0.0f, W, 78.0f);
     g.setColour(juce::Colour(0xff24304a));
     g.drawLine(0.0f, 78.0f, W, 78.0f, 1.0f);
-    drawCrest(g, 26.0f, 11.0f, 56.0f);
+    drawCrest(g, 20.0f, 4.0f, 70.0f);
     g.setColour(cyan.withAlpha(0.85f));
     g.setFont(font(11.0f, true, 0.25f));
     g.drawText("ARCANE TONE SYSTEM", 100.0f, 24.0f, 180.0f, 16.0f, juce::Justification::centredLeft);

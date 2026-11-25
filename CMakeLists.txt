@@ -45,7 +45,10 @@ target_compile_definitions(MAGE PUBLIC
     JUCE_USE_CURL=0
 )
 
+juce_add_binary_data(MageAssets SOURCES assets/mage_mark.png)
+
 target_link_libraries(MAGE PRIVATE
+    MageAssets
     juce::juce_audio_utils
     juce::juce_dsp
     juce::juce_gui_extra

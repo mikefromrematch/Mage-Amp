@@ -1,4 +1,5 @@
 #include "Widgets.h"
+#include "BinaryData.h"
 
 namespace mage::ui
 {
@@ -63,32 +64,11 @@ void drawScrew(juce::Graphics& g, juce::Point<float> p, float r, juce::Colour ac
 
 void drawCrest(juce::Graphics& g, float x, float y, float size)
 {
-    juce::Path frame;
-    frame.startNewSubPath(x + size * 0.5f, y);
-    frame.lineTo(x + size * 0.91f, y + size * 0.20f);
-    frame.lineTo(x + size * 0.91f, y + size * 0.72f);
-    frame.lineTo(x + size * 0.5f, y + size);
-    frame.lineTo(x + size * 0.09f, y + size * 0.72f);
-    frame.lineTo(x + size * 0.09f, y + size * 0.20f);
-    frame.closeSubPath();
-
-    juce::ColourGradient aura(cyan.withAlpha(0.28f), x, y, pink.withAlpha(0.10f), x + size, y + size, true);
-    g.setGradientFill(aura);
-    g.fillEllipse(x - size * 0.10f, y - size * 0.10f, size * 1.20f, size * 1.20f);
-    g.setColour(cyan.withAlpha(0.9f));
-    g.strokePath(frame, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-
-    juce::Path monogram;
-    monogram.startNewSubPath(x + size * 0.24f, y + size * 0.73f);
-    monogram.lineTo(x + size * 0.24f, y + size * 0.29f);
-    monogram.lineTo(x + size * 0.50f, y + size * 0.57f);
-    monogram.lineTo(x + size * 0.76f, y + size * 0.29f);
-    monogram.lineTo(x + size * 0.76f, y + size * 0.73f);
-    monogram.startNewSubPath(x + size * 0.35f, y + size * 0.82f);
-    monogram.lineTo(x + size * 0.65f, y + size * 0.82f);
-    juce::ColourGradient ink(cyan, x, y, pink, x + size, y + size, false);
-    g.setGradientFill(ink);
-    g.strokePath(monogram, juce::PathStrokeType(size * 0.055f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    // The MAGE brush mark (assets/mage_mark.png), pre-tinted cyan -> violet -> pink with its glow.
+    static const juce::Image mark = juce::ImageCache::getFromMemory(BinaryData::mage_mark_png,
+                                                                    BinaryData::mage_mark_pngSize);
+    if (mark.isValid())
+        g.drawImage(mark, { x, y, size, size }, juce::RectanglePlacement::centred);
 }
 
 // ---------------------------------------------------------------------------
