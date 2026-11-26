@@ -18,13 +18,13 @@ namespace layout
                          { 660.0f, 492.0f, 300.0f, 388.0f }, { 980.0f, 492.0f, 300.0f, 388.0f } };
     const R output { 1300.0f, 492.0f, 280.0f, 388.0f };
     // Indexed by mage::Pedal.
-    const char* pedalTitles[mage::numPedals] = { "OCTAVE", "DRIVE", "SHIMMER", "FREEZE", "PHASER", "CHORUS", "DELAY", "REVERB" };
+    const char* pedalTitles[mage::numPedals] = { "OCTAVE", "DRIVE", "SHIMMER", "PHASER", "CHORUS", "DELAY", "REVERB" };
     const char* pedalTaglines[2][mage::numPedals] = {
-        { "SUB / UPPER OCTAVE", "MID-FOCUSED OVERDRIVE", "OCTAVE-UP HALO", "INFINITE SUSTAIN",
+        { "UPPER OCTAVE FUZZ", "MID-FOCUSED OVERDRIVE", "OCTAVE-UP HALO",
           "ARCANE VORTEX", "SPECTRAL DOUBLING", "WARM ANALOG ECHO", "ETHEREAL SPACE" },
-        { "SUB / UPPER OCTAVE", "MID-FOCUSED OVERDRIVE", "OCTAVE-UP HALO", "INFINITE SUSTAIN",
+        { "UPPER OCTAVE FUZZ", "MID-FOCUSED OVERDRIVE", "OCTAVE-UP HALO",
           "MOONTIDE SWEEP", "FAERIE CHORUS", "MOONLIT ECHO", "FAERIE GLADE" } };
-    const Rune pedalRunes[mage::numPedals] = { Rune::octave, Rune::drive, Rune::shimmer, Rune::freeze,
+    const Rune pedalRunes[mage::numPedals] = { Rune::octave, Rune::drive, Rune::shimmer,
                                                Rune::phaser, Rune::chorus, Rune::delay, Rune::reverb };
     // x centre of each gap an amp marker can sit in (before slot 0 ... after slot 3).
     const float ampGapX[] = { 20.0f, 330.0f, 650.0f, 970.0f, 1290.0f };
@@ -45,7 +45,6 @@ MainPanel::MainPanel(MageAudioProcessor& p)
       lowCut(p.state, "lowCut", "LOW CUT", pink), highCut(p.state, "highCut", "HIGH CUT", pink),
       octaveMix(p.state, "octaveMix", "MIX", violet), octaveTone(p.state, "octaveTone", "TONE", violet),
       octaveLevel(p.state, "octaveLevel", "LEVEL", violet),
-      octaveDown(p.state, "octaveDown", "SUB OCTAVE", violet),
       drive(p.state, "drive", "DRIVE", pink), driveTone(p.state, "driveTone", "TONE", pink),
       driveLevel(p.state, "driveLevel", "LEVEL", pink), driveBoost(p.state, "driveBoost", "BOOST", pink),
       delayTime(p.state, "delayTime", "TIME", cyan), delayDivision(p.state, "delayDivision", "NOTE", cyan),
@@ -60,10 +59,7 @@ MainPanel::MainPanel(MageAudioProcessor& p)
       shimmerMix(p.state, "shimmerMix", "MIX", violet), shimmerDecay(p.state, "shimmerDecay", "DECAY", violet),
       shimmerAmount(p.state, "shimmerAmount", "SHIMMER", violet), shimmerTone(p.state, "shimmerTone", "TONE", violet),
       shimmerFifth(p.state, "shimmerFifth", "FIFTH", violet),
-      freezeMix(p.state, "freezeMix", "MIX", cyan), freezeFade(p.state, "freezeFade", "FADE", cyan),
-      freezeTone(p.state, "freezeTone", "TONE", cyan),
-      freezeMomentary(p.state, "freezeMomentary", "MOMENTARY", cyan),
-      shimmerSwitch(p.state, "shimmerEnabled", violet), freezeSwitch(p.state, "freezeEnabled", cyan),
+      shimmerSwitch(p.state, "shimmerEnabled", violet),
       phaserRate(p.state, "phaserRate", "RATE"), phaserDepth(p.state, "phaserDepth", "DEPTH"),
       phaserFeedback(p.state, "phaserFeedback", "RESO"), phaserMix(p.state, "phaserMix", "MIX"),
       phaserStages(p.state, "phaserStages", "8-STAGE", violet),
@@ -83,13 +79,13 @@ MainPanel::MainPanel(MageAudioProcessor& p)
              &frieze, &gain, &bass, &mid, &treble, &presence, &depth, &master,
              &gateThreshold, &gateRelease, &gateOn, &gatePost,
              &lowCut, &highCut, &loadIR, &bypassIR,
-             &octaveMix, &octaveTone, &octaveLevel, &octaveDown,
+             &octaveMix, &octaveTone, &octaveLevel,
              &drive, &driveTone, &driveLevel, &driveBoost,
              &delayTime, &delayDivision, &delayFeedback, &delayMix, &delaySync,
              &reverbDecay, &reverbSize, &reverbTone, &reverbMix,
              &octaveSwitch, &driveSwitch, &delaySwitch, &reverbSwitch, &output,
              &channelSwitch, &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone, &shimmerFifth,
-             &freezeMix, &freezeFade, &freezeTone, &freezeMomentary, &shimmerSwitch, &freezeSwitch,
+             &shimmerSwitch,
              &phaserRate, &phaserDepth, &phaserFeedback, &phaserMix, &phaserStages, &phaserSwitch,
              &chorusRate, &chorusDepth, &chorusTone, &chorusMix, &chorusVibrato, &chorusSwitch,
              &compSustain, &compLevel, &compOn, &compParallel })
@@ -97,10 +93,9 @@ MainPanel::MainPanel(MageAudioProcessor& p)
 
     // --- Pedalboard ---
     pedalViews = { {
-        { { &octaveMix, &octaveTone, &octaveLevel }, &octaveDown, &octaveSwitch },
+        { { &octaveMix, &octaveTone, &octaveLevel }, nullptr, &octaveSwitch },
         { { &drive, &driveTone, &driveLevel }, &driveBoost, &driveSwitch },
         { { &shimmerMix, &shimmerDecay, &shimmerAmount, &shimmerTone }, &shimmerFifth, &shimmerSwitch },
-        { { &freezeMix, &freezeFade, &freezeTone }, &freezeMomentary, &freezeSwitch },
         { { &phaserRate, &phaserDepth, &phaserFeedback, &phaserMix }, &phaserStages, &phaserSwitch },
         { { &chorusRate, &chorusDepth, &chorusTone, &chorusMix }, &chorusVibrato, &chorusSwitch },
         { { &delayTime, &delayFeedback, &delayMix }, &delaySync, &delaySwitch },
@@ -138,7 +133,7 @@ MainPanel::MainPanel(MageAudioProcessor& p)
         { &depth, "depth" }, { &master, "master" }, { &gateThreshold, "gate" }, { &gateRelease, "gateDecay" },
         { &gateOn, "gateEnabled" }, { &gatePost, "gatePost" }, { &lowCut, "lowCut" }, { &highCut, "highCut" },
         { &octaveMix, "octaveMix" }, { &octaveTone, "octaveTone" }, { &octaveLevel, "octaveLevel" },
-        { &octaveDown, "octaveDown" }, { &drive, "drive" }, { &driveTone, "driveTone" }, { &driveLevel, "driveLevel" },
+        { &drive, "drive" }, { &driveTone, "driveTone" }, { &driveLevel, "driveLevel" },
         { &driveBoost, "driveBoost" }, { &delayTime, "delayTime" }, { &delayDivision, "delayDivision" },
         { &delayFeedback, "delayFeedback" }, { &delayMix, "delayMix" }, { &delaySync, "delaySync" },
         { &reverbDecay, "reverbDecay" }, { &reverbSize, "reverbSize" }, { &reverbTone, "reverbTone" },
@@ -146,8 +141,7 @@ MainPanel::MainPanel(MageAudioProcessor& p)
         { &delaySwitch, "delayEnabled" }, { &reverbSwitch, "reverbEnabled" }, { &output, "output" },
         { &channelSwitch, "ampChannel" }, { &shimmerMix, "shimmerMix" }, { &shimmerDecay, "shimmerDecay" },
         { &shimmerAmount, "shimmerAmount" }, { &shimmerTone, "shimmerTone" }, { &shimmerFifth, "shimmerFifth" },
-        { &freezeMix, "freezeMix" }, { &freezeFade, "freezeFade" }, { &freezeTone, "freezeTone" },
-        { &freezeMomentary, "freezeMomentary" }, { &shimmerSwitch, "shimmerEnabled" }, { &freezeSwitch, "freezeEnabled" },
+        { &shimmerSwitch, "shimmerEnabled" },
         { &phaserRate, "phaserRate" }, { &phaserDepth, "phaserDepth" }, { &phaserFeedback, "phaserFeedback" },
         { &phaserMix, "phaserMix" }, { &phaserStages, "phaserStages" }, { &phaserSwitch, "phaserEnabled" },
         { &chorusRate, "chorusRate" }, { &chorusDepth, "chorusDepth" }, { &chorusTone, "chorusTone" },
@@ -158,8 +152,6 @@ MainPanel::MainPanel(MageAudioProcessor& p)
         control->addMouseListener(this, true);
 
     shimmerFifth.setTooltip("Shift the shimmer up a fifth instead of an octave");
-    freezeMomentary.setTooltip("Freeze only while the footswitch is held");
-    freezeSwitch.isMomentary = [this] { return processor.state.getRawParameterValue("freezeMomentary")->load() > 0.5f; };
 
     // --- Presets ---
     presetBox.setJustificationType(juce::Justification::centredLeft);

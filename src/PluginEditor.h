@@ -76,7 +76,6 @@ private:
     juce::TextButton loadIR { "LOAD IR" }, bypassIR { "BUILT-IN" };
     // Pedals
     Knob octaveMix, octaveTone, octaveLevel;
-    LedToggle octaveDown;
     Knob drive, driveTone, driveLevel;
     LedToggle driveBoost;
     Knob delayTime, delayDivision, delayFeedback, delayMix;
@@ -89,9 +88,7 @@ private:
     mage::ui::ChannelSwitch channelSwitch;
     Knob shimmerMix, shimmerDecay, shimmerAmount, shimmerTone;
     LedToggle shimmerFifth;
-    Knob freezeMix, freezeFade, freezeTone;
-    LedToggle freezeMomentary;
-    Footswitch shimmerSwitch, freezeSwitch;
+    Footswitch shimmerSwitch;
     // Phaser and chorus / vibrato
     Knob phaserRate, phaserDepth, phaserFeedback, phaserMix;
     LedToggle phaserStages;

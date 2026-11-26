@@ -60,7 +60,6 @@ private:
     // crossfade when it's switched on or off.
     void runPedal(int type, float* L, float* R, int n);
     void processPedal(mage::Pedal, float* L, float* R, int n);
-    void processFreeze(float* L, float* R, int n);
     void resetPedalState(int type);
 
     using Biquad = mage::dsp::Biquad;
@@ -83,7 +82,6 @@ private:
     mage::dsp::CleanPreamp cleanPreamp;             // Fae channel (oversampled)
     Biquad cleanPresence, cleanDepth;
     mage::dsp::DCBlocker cleanPowerDC;
-    mage::dsp::FreezePedal freeze;                  // base rate
     mage::dsp::ShimmerReverb shimmer;
     mage::dsp::Phaser phaser;
     mage::dsp::ChorusVibrato chorus;
@@ -106,9 +104,9 @@ private:
     mage::dsp::OnePole delayDamp[2];
     juce::dsp::Reverb reverb;
 
-    juce::SmoothedValue<float> stage1Gain, stage2Gain, powerDrive;      // oversampled rate
+    juce::SmoothedValue<float> stage1Gain, stage2Gain, stage3Gain, powerDrive;      // oversampled rate
     juce::SmoothedValue<float> channelMix, cleanGain, cleanPower, cleanMakeup;      // oversampled rate
-    juce::SmoothedValue<float> shimmerMixS, freezeMixS;                // base rate
+    juce::SmoothedValue<float> shimmerMixS;                // base rate
     juce::SmoothedValue<float> outputGain, octaveMixS, delayMixS, delayFeedbackS, delaySamplesS; // base rate
 
     // Last values used to compute filter coefficients (avoid recomputing every block).

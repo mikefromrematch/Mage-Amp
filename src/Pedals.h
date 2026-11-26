@@ -9,14 +9,13 @@
 // effects loop. Left to right is the signal path.
 namespace mage
 {
-enum class Pedal { octave, drive, shimmer, freeze, phaser, chorus, delay, reverb };
-constexpr int numPedals = 8;
+enum class Pedal { octave, drive, shimmer, phaser, chorus, delay, reverb };
+constexpr int numPedals = 7;
 constexpr int numSlots = 4;
 
 inline const juce::StringArray& pedalNames()
 {
-    static const juce::StringArray names { "Octave", "Drive", "Shimmer", "Freeze", "Phaser", "Chorus / Vibrato",
-                                           "Delay", "Reverb" };
+    static const juce::StringArray names { "Octave", "Drive", "Shimmer", "Phaser", "Chorus / Vibrato", "Delay", "Reverb" };
     return names;
 }
 
@@ -27,7 +26,7 @@ inline juce::String slotParamID(int channel, int slot)
 }
 inline juce::String ampPosParamID(int channel) { return channel == 0 ? "arcaneAmpPos" : "faeAmpPos"; }
 
-// Today's boards: Arcane = octave, drive | amp | delay, reverb; Fae = amp | shimmer, freeze, delay, reverb.
-constexpr int defaultBoard[2][numSlots] = { { 0, 1, 6, 7 }, { 2, 3, 6, 7 } };
+// Default boards: Arcane = octave, drive | amp | delay, reverb; Fae = amp | shimmer, chorus, delay, reverb.
+constexpr int defaultBoard[2][numSlots] = { { 0, 1, 5, 6 }, { 2, 4, 5, 6 } };
 constexpr int defaultAmpPos[2] = { 2, 0 };
 } // namespace mage

@@ -31,8 +31,7 @@ PresetManager::PresetManager(juce::AudioProcessorValueTreeState& s, juce::UndoMa
                               { "delayFeedback", 0.3f }, { "delayMix", 0.2f }, { "reverbEnabled", 1.0f },
                               { "reverbMix", 0.2f }, { "gate", -60.0f }, { "output", 7.5f } } },
         { "Abyss Drop", { { "gain", 7.8f }, { "bass", 6.0f }, { "mid", 3.8f }, { "treble", 6.0f },
-                          { "depth", 6.5f }, { "octaveEnabled", 1.0f }, { "octaveDown", 1.0f },
-                          { "octaveMix", 0.45f }, { "octaveTone", 3.5f }, { "gate", -45.0f },
+                          { "depth", 6.5f }, { "gate", -45.0f },
                           { "gateDecay", 40.0f }, { "lowCut", 60.0f } } },
 
         // ---- Fae clean channel ----
@@ -50,15 +49,15 @@ PresetManager::PresetManager(juce::AudioProcessorValueTreeState& s, juce::UndoMa
                             { "treble", 5.5f }, { "gateEnabled", 0.0f }, { "delayEnabled", 1.0f },
                             { "delayTime", 520.0f }, { "delayFeedback", 0.45f }, { "delayMix", 0.3f },
                             { "reverbEnabled", 1.0f }, { "reverbMix", 0.35f }, { "reverbSize", 0.8f },
-                            { "reverbDecay", 0.8f }, { "freezeMix", 0.6f }, { "freezeFade", 1.5f },
+                            { "reverbDecay", 0.8f },
                             { "output", 8.0f } } },
         { "Thistle Breakup", { { "ampChannel", 1.0f }, { "gain", 8.5f }, { "bass", 5.0f }, { "mid", 6.5f },
                                { "treble", 5.5f }, { "presence", 5.5f }, { "master", 7.5f }, { "gate", -70.0f },
                                { "reverbEnabled", 1.0f }, { "reverbMix", 0.15f }, { "output", 7.0f } } },
         { "Frozen Grove", { { "ampChannel", 1.0f }, { "gain", 4.5f }, { "treble", 5.5f }, { "gateEnabled", 0.0f },
                             { "shimmerEnabled", 1.0f }, { "shimmerFifth", 1.0f }, { "shimmerMix", 0.4f },
-                            { "shimmerDecay", 0.75f }, { "shimmerAmount", 0.6f }, { "freezeMix", 0.8f },
-                            { "freezeFade", 2.5f }, { "freezeTone", 0.55f }, { "output", 8.5f } } },
+                            { "shimmerDecay", 0.75f }, { "shimmerAmount", 0.6f }, { "chorusEnabled", 1.0f },
+                            { "chorusRate", 0.4f }, { "chorusDepth", 0.6f }, { "chorusMix", 0.4f }, { "output", 8.5f } } },
     };
 
     if (!state.state.hasProperty(presetNameId))

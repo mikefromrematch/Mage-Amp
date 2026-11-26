@@ -18,7 +18,7 @@ struct MageAudioProcessor::Params
         treble = get("treble"); presence = get("presence"); depth = get("depth");
         gate = get("gate"); gateDecay = get("gateDecay"); gateEnabled = get("gateEnabled"); gatePost = get("gatePost");
         octaveMix = get("octaveMix"); octaveTone = get("octaveTone"); octaveLevel = get("octaveLevel");
-        octaveEnabled = get("octaveEnabled"); octaveDown = get("octaveDown");
+        octaveEnabled = get("octaveEnabled");
         drive = get("drive"); driveEnabled = get("driveEnabled"); driveTone = get("driveTone");
         driveLevel = get("driveLevel"); driveBoost = get("driveBoost");
         delayTime = get("delayTime"); delayEnabled = get("delayEnabled"); delayFeedback = get("delayFeedback");
@@ -29,8 +29,6 @@ struct MageAudioProcessor::Params
         ampChannel = get("ampChannel");
         shimmerEnabled = get("shimmerEnabled"); shimmerMix = get("shimmerMix"); shimmerDecay = get("shimmerDecay");
         shimmerAmount = get("shimmerAmount"); shimmerTone = get("shimmerTone"); shimmerFifth = get("shimmerFifth");
-        freezeEnabled = get("freezeEnabled"); freezeMix = get("freezeMix"); freezeFade = get("freezeFade");
-        freezeTone = get("freezeTone");
         compEnabled = get("compEnabled"); compSustain = get("compSustain"); compLevel = get("compLevel");
         compParallel = get("compParallel");
         phaserEnabled = get("phaserEnabled"); phaserRate = get("phaserRate"); phaserDepth = get("phaserDepth");
@@ -43,19 +41,18 @@ struct MageAudioProcessor::Params
                 slot[ch][n] = get(mage::slotParamID(ch, n).toRawUTF8());
             ampPos[ch] = get(mage::ampPosParamID(ch).toRawUTF8());
         }
-        enabled = { octaveEnabled, driveEnabled, shimmerEnabled, freezeEnabled, phaserEnabled, chorusEnabled,
+        enabled = { octaveEnabled, driveEnabled, shimmerEnabled, phaserEnabled, chorusEnabled,
                     delayEnabled, reverbEnabled };
     }
     std::atomic<float>* gain, *master, *bass, *mid, *treble, *presence, *depth,
         *gate, *gateDecay, *gateEnabled, *gatePost,
-        *octaveMix, *octaveTone, *octaveLevel, *octaveEnabled, *octaveDown,
+        *octaveMix, *octaveTone, *octaveLevel, *octaveEnabled,
         *drive, *driveEnabled, *driveTone, *driveLevel, *driveBoost,
         *delayTime, *delayEnabled, *delayFeedback, *delayMix, *delaySync, *delayDivision,
         *reverbDecay, *reverbEnabled, *reverbSize, *reverbTone, *reverbMix,
         *lowCut, *highCut, *output,
         *ampChannel,
         *shimmerEnabled, *shimmerMix, *shimmerDecay, *shimmerAmount, *shimmerTone, *shimmerFifth,
-        *freezeEnabled, *freezeMix, *freezeFade, *freezeTone,
         *compEnabled, *compSustain, *compLevel, *compParallel,
         *phaserEnabled, *phaserRate, *phaserDepth, *phaserFeedback, *phaserMix, *phaserStages,
         *chorusEnabled, *chorusRate, *chorusDepth, *chorusTone, *chorusMix, *chorusVibrato;
@@ -147,7 +144,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout MageAudioProcessor::createLa
     knob("octaveTone", "Octave Tone", 5.0f);
     knob("octaveLevel", "Octave Level", 5.0f);
     toggle("octaveEnabled", "Octave Enabled", false);
-    toggle("octaveDown", "Octave Down", false);
 
     // Drive
     knob("drive", "Drive", 0.0f);
@@ -180,13 +176,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout MageAudioProcessor::createLa
     ranged("shimmerTone", "Shimmer Tone", 0.0f, 1.0f, 0.0f, 0.6f, pctText, "");
     toggle("shimmerFifth", "Shimmer Fifth", false);
 
-    // Freeze (Fae channel, replaces the drive)
-    toggle("freezeEnabled", "Freeze", false);
-    ranged("freezeMix", "Freeze Mix", 0.0f, 1.0f, 0.0f, 0.7f, pctText, "");
-    ranged("freezeFade", "Freeze Fade", 0.05f, 4.0f, 0.8f, 0.8f,
-           [](float v, int) { return juce::String(v, v < 1.0f ? 2 : 1) + " s"; }, "s");
-    ranged("freezeTone", "Freeze Tone", 0.0f, 1.0f, 0.0f, 0.7f, pctText, "");
-    toggle("freezeMomentary", "Freeze Momentary", false);
 
     // Compressor (front of the chain)
     toggle("compEnabled", "Compressor Enabled", false);
@@ -255,7 +244,6 @@ void MageAudioProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock
     cleanPresence.prepare(osRate);
     cleanDepth.prepare(osRate);
     cleanPowerDC.prepare(osRate);
-    freeze.prepare(sampleRate);
     shimmer.prepare(sampleRate);
     phaser.prepare(sampleRate);
     chorus.prepare(sampleRate);
@@ -290,23 +278,23 @@ void MageAudioProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock
     reverb.reset();
 
     // Smoothers
-    for (auto* s : { &stage1Gain, &stage2Gain, &powerDrive, &cleanGain, &cleanPower, &cleanMakeup })
+    for (auto* s : { &stage1Gain, &stage2Gain, &stage3Gain, &powerDrive, &cleanGain, &cleanPower, &cleanMakeup })
         s->reset(osRate, 0.04);
     channelMix.reset(osRate, 0.06);
-    for (auto* s : { &outputGain, &octaveMixS, &delayMixS, &delayFeedbackS, &freezeMixS })
+    for (auto* s : { &outputGain, &octaveMixS, &delayMixS, &delayFeedbackS })
         s->reset(sampleRate, 0.03);
     shimmerMixS.reset(sampleRate, 0.08);
     delaySamplesS.reset(sampleRate, 0.25);
 
     stage1Gain.setCurrentAndTargetValue(1.0f);
     stage2Gain.setCurrentAndTargetValue(1.0f);
+    stage3Gain.setCurrentAndTargetValue(1.0f);
     powerDrive.setCurrentAndTargetValue(1.0f);
     cleanGain.setCurrentAndTargetValue(1.0f);
     cleanPower.setCurrentAndTargetValue(1.0f);
     cleanMakeup.setCurrentAndTargetValue(1.0f);
     channelMix.setCurrentAndTargetValue(p->ampChannel->load() > 0.5f ? 1.0f : 0.0f);
     shimmerMixS.setCurrentAndTargetValue(0.0f);
-    freezeMixS.setCurrentAndTargetValue(p->freezeMix->load());
     outputGain.setCurrentAndTargetValue(dbToGain(knobDb(p->output->load(), 12.0f) - 10.0f));
     octaveMixS.setCurrentAndTargetValue(0.0f);
     delayMixS.setCurrentAndTargetValue(0.0f);
@@ -460,8 +448,12 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
 
     // ---- Oversampled amp: preamp -> tone stack -> power amp ----
     const float gainKnob = P.gain->load();
-    stage1Gain.setTargetValue(dbToGain(4.0f + gainKnob * 2.6f));
-    stage2Gain.setTargetValue(dbToGain(-4.0f + gainKnob * 2.2f));
+    // Up to 5 the gain knob feels as it always has; above that the extra gain comes in
+    // fast for modern high-gain tones, with a third stage joining in.
+    const float hot = juce::jmax(0.0f, gainKnob - 5.0f);
+    stage1Gain.setTargetValue(dbToGain(4.0f + gainKnob * 2.6f + hot * 2.4f));
+    stage2Gain.setTargetValue(dbToGain(-4.0f + gainKnob * 2.2f + hot * 2.0f));
+    stage3Gain.setTargetValue(dbToGain(-12.0f + gainKnob * 2.4f));
     powerDrive.setTargetValue(dbToGain(-10.0f + P.master->load() * 1.6f));
     cleanGain.setTargetValue(dbToGain(-7.0f + gainKnob * 1.7f));
     cleanPower.setTargetValue(dbToGain(-5.0f + P.master->load() * 1.0f));
@@ -482,7 +474,7 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
         float arcane = 0.0f, clean = 0.0f;
         if (cm < 1.0f)
         {
-            float x = preamp.process(in, stage1Gain.getNextValue(), stage2Gain.getNextValue());
+            float x = preamp.process(in, stage1Gain.getNextValue(), stage2Gain.getNextValue(), stage3Gain.getNextValue());
             x = bass.process(x);
             x = middle.process(x);
             x = treble.process(x);
@@ -572,7 +564,6 @@ void MageAudioProcessor::resetPedalState(int type)
         case mage::Pedal::octave:  octave.reset(); octaveMixS.setCurrentAndTargetValue(p->octaveMix->load()); break;
         case mage::Pedal::drive:   drive.reset(); driveOversampler.reset(); break;
         case mage::Pedal::shimmer: shimmer.reset(); shimmerMixS.setCurrentAndTargetValue(p->shimmerMix->load()); break;
-        case mage::Pedal::freeze:  freeze.reset(); break;
         case mage::Pedal::phaser:  phaser.reset(); break;
         case mage::Pedal::chorus:  chorus.reset(); break;
         case mage::Pedal::delay:
@@ -588,12 +579,6 @@ void MageAudioProcessor::resetPedalState(int type)
 void MageAudioProcessor::runPedal(int type, float* L, float* R, int n)
 {
     const auto pedal = static_cast<mage::Pedal>(type);
-    if (pedal == mage::Pedal::freeze)
-    {
-        processFreeze(L, R, n);   // always listening, so a stomp can capture the last moment
-        return;
-    }
-
     const bool on = p->enabled[(size_t)type]->load() > 0.5f;
     auto& fade = pedalOn[(size_t)type];
     fade.setTargetValue(on ? 1.0f : 0.0f);
@@ -639,12 +624,11 @@ void MageAudioProcessor::processPedal(mage::Pedal pedal, float* L, float* R, int
         {
             octaveMixS.setTargetValue(P.octaveMix->load());
             const float level = dbToGain(knobDb(P.octaveLevel->load(), 10.0f));
-            const bool down = P.octaveDown->load() > 0.5f;
             for (int i = 0; i < n; ++i)
             {
                 const float mix = octaveMixS.getNextValue();
                 const float in = R != nullptr ? 0.5f * (L[i] + R[i]) : L[i];
-                const float o = octave.process(in, down) * mix * level;
+                const float o = octave.process(in) * mix * level;
                 L[i] = L[i] * (1.0f - mix) + o;
                 if (R != nullptr)
                     R[i] = R[i] * (1.0f - mix) + o;
@@ -759,24 +743,6 @@ void MageAudioProcessor::processPedal(mage::Pedal pedal, float* L, float* R, int
             reverb.process(ctx);
             break;
         }
-        case mage::Pedal::freeze:
-            break;   // handled by processFreeze
-    }
-}
-
-void MageAudioProcessor::processFreeze(float* L, float* R, int n)
-{
-    const auto& P = *p;
-    freeze.setParameters(P.freezeFade->load(), P.freezeTone->load());
-    freezeMixS.setTargetValue(P.freezeMix->load() * 1.4f);
-    const bool engaged = P.freezeEnabled->load() > 0.5f;
-    for (int i = 0; i < n; ++i)
-    {
-        const float in = R != nullptr ? 0.5f * (L[i] + R[i]) : L[i];
-        const float frozen = freeze.process(in, engaged) * freezeMixS.getNextValue();
-        L[i] += frozen;
-        if (R != nullptr)
-            R[i] += frozen;
     }
 }
 

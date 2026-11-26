@@ -129,53 +129,29 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// Octave pedal, placed before the amp where tracking is clean.
-//  - Down: analog-style flip-flop divider (toggles on each rising zero
-//    crossing of a filtered copy) multiplied with the signal.
-//  - Up: full-wave rectifier, DC removed.
+// Octave-up pedal: full-wave rectifier with DC removed, then a tone filter.
 class OctavePedal
 {
 public:
     void prepare(double newSampleRate)
     {
         sampleRate = newSampleRate;
-        trackLP.setCutoff(sampleRate, 500.0f);
-        trackHP.prepare(sampleRate);
         dc.prepare(sampleRate);
         reset();
     }
-    void reset() { trackLP.reset(); trackHP.reset(); dc.reset(); tone.reset(); prev = 0.0f; flip = 1.0f; armed = true; }
+    void reset() { dc.reset(); tone.reset(); }
 
     void setTone(float knob0to10) noexcept
     {
         tone.setCutoff(sampleRate, 350.0f * std::pow(2.0f, knob0to10 * 0.45f)); // ~350 Hz .. ~7.6 kHz
     }
 
-    float process(float x, bool down) noexcept
-    {
-        float oct;
-        if (down)
-        {
-            const float t = trackHP.process(trackLP.process(x));
-            // Small hysteresis so noise near zero doesn't double-trigger.
-            if (armed && prev <= 0.0f && t > 0.0f) { flip = -flip; armed = false; }
-            if (t < -0.002f) armed = true;
-            prev = t;
-            oct = x * flip;
-        }
-        else
-        {
-            oct = dc.process(std::abs(x) * 1.6f);
-        }
-        return tone.process(oct);
-    }
+    float process(float x) noexcept { return tone.process(dc.process(std::abs(x) * 1.6f)); }
 
 private:
     double sampleRate = 44100.0;
-    OnePole trackLP, tone;
-    DCBlocker trackHP, dc;
-    float prev = 0.0f, flip = 1.0f;
-    bool armed = true;
+    OnePole tone;
+    DCBlocker dc;
 };
 
 // ---------------------------------------------------------------------------
@@ -220,7 +196,7 @@ public:
     void prepare(double newSampleRate)
     {
         sampleRate = newSampleRate;
-        for (auto* b : { &inputHP, &tightHP, &smooth1, &stage2HP, &smooth2, &brightPeak })
+        for (auto* b : { &inputHP, &tightHP, &smooth1, &stage2HP, &smooth2, &stage3HP, &smooth3, &brightPeak })
             b->prepare(sampleRate);
         inputHP.setHighPass(35.0f);
         brightPeak.setPeak(2800.0f, 0.6f, 3.0f);   // input "bright cap" character
@@ -228,17 +204,19 @@ public:
         smooth1.setLowPass(11000.0f, 0.6f);
         stage2HP.setHighPass(60.0f);
         smooth2.setLowPass(7000.0f, 0.6f);
+        stage3HP.setHighPass(90.0f);               // third stage: keeps high gain from going woolly
+        smooth3.setLowPass(6500.0f, 0.6f);         // and tames fizz
         dc.prepare(sampleRate);
     }
     void reset()
     {
-        for (auto* b : { &inputHP, &tightHP, &smooth1, &stage2HP, &smooth2, &brightPeak })
+        for (auto* b : { &inputHP, &tightHP, &smooth1, &stage2HP, &smooth2, &stage3HP, &smooth3, &brightPeak })
             b->reset();
         dc.reset();
     }
 
-    // g1/g2 are linear stage gains (smoothed by the caller).
-    float process(float x, float g1, float g2) noexcept
+    // g1/g2/g3 are linear stage gains (smoothed by the caller).
+    float process(float x, float g1, float g2, float g3) noexcept
     {
         x = inputHP.process(x);
         x = brightPeak.process(x);
@@ -248,13 +226,16 @@ public:
         x = tubeClip(x * g2, -0.18f);
         x = stage2HP.process(x);
         x = smooth2.process(x);
+        x = tubeClip(x * g3, 0.12f);
+        x = stage3HP.process(x);
+        x = smooth3.process(x);
         x = tubeClip(x * 1.8f, 0.10f) * 0.8f;
         return dc.process(x);
     }
 
 private:
     double sampleRate = 44100.0;
-    Biquad inputHP, tightHP, smooth1, stage2HP, smooth2, brightPeak;
+    Biquad inputHP, tightHP, smooth1, stage2HP, smooth2, stage3HP, smooth3, brightPeak;
     DCBlocker dc;
 };
 
@@ -481,109 +462,6 @@ private:
     PitchShifter shifter;
     Biquad shifterHP;
     float feedback = 0.8f, amount = 0.4f, shiftFeedback = 0.0f, loopGain = 5.0f;
-};
-
-// ---------------------------------------------------------------------------
-// Freeze: records continuously; when engaged it captures the last moment of
-// playing and sustains it as a seamless drone made of overlapping, randomly
-// placed grains read from the captured audio. Fades in and out smoothly, and
-// only starts recording again once it has fully faded away.
-class FreezePedal
-{
-public:
-    static constexpr int numGrains = 4;
-
-    void prepare(double newSampleRate)
-    {
-        sampleRate = newSampleRate;
-        buffer.prepare(static_cast<int>(sampleRate * 1.2));
-        captureLength = static_cast<int>(sampleRate * 0.6);
-        grainLength = static_cast<int>(sampleRate * 0.20);
-        toneLP.prepare(sampleRate);
-        dc.prepare(sampleRate);
-        setParameters(0.8f, 0.7f);
-        reset();
-    }
-
-    void reset()
-    {
-        buffer.reset();
-        toneLP.reset();
-        dc.reset();
-        frozen = false;
-        level = 0.0f;
-    }
-
-    void setParameters(float fadeSeconds, float tone) noexcept
-    {
-        fadeStep = 1.0f / static_cast<float>(sampleRate * juce::jmax(0.02f, fadeSeconds));
-        toneLP.setLowPass(900.0f * std::pow(2.0f, juce::jlimit(0.0f, 1.0f, tone) * 3.8f), 0.6f);
-    }
-
-    bool isActive() const noexcept { return frozen; }
-
-    // Returns the frozen layer (to be mixed in by the caller).
-    float process(float x, bool engaged) noexcept
-    {
-        if (!frozen)
-        {
-            buffer.push(x);
-            if (!engaged)
-                return 0.0f;
-            capture();
-        }
-
-        level = engaged ? juce::jmin(1.0f, level + fadeStep) : juce::jmax(0.0f, level - fadeStep);
-        if (!engaged && level <= 0.0f)
-        {
-            frozen = false;
-            return 0.0f;
-        }
-
-        float y = 0.0f;
-        for (auto& g : grains)
-        {
-            const float t = static_cast<float>(g.age) / static_cast<float>(grainLength);
-            const float w = std::sin(juce::MathConstants<float>::pi * t);
-            y += buffer.at(captureStart + g.start + g.age) * w * w;
-            if (++g.age >= grainLength)
-                restartGrain(g);
-        }
-        y = dc.process(toneLP.process(y * 0.62f));
-        return y * level;
-    }
-
-private:
-    struct Grain { int start = 0, age = 0; };
-
-    void capture() noexcept
-    {
-        frozen = true;
-        level = 0.0f;
-        captureStart = buffer.position() - captureLength;
-        for (int i = 0; i < numGrains; ++i)
-        {
-            restartGrain(grains[i]);
-            grains[i].age = grainLength * i / numGrains;   // staggered so the windows overlap evenly
-        }
-    }
-    void restartGrain(Grain& g) noexcept
-    {
-        seed = seed * 1664525u + 1013904223u;
-        const int span = captureLength - grainLength;
-        g.start = static_cast<int>((seed >> 8) % static_cast<juce::uint32>(juce::jmax(1, span)));
-        g.age = 0;
-    }
-
-    double sampleRate = 44100.0;
-    RingBuffer buffer;
-    Biquad toneLP;
-    DCBlocker dc;
-    Grain grains[numGrains];
-    int captureLength = 1, grainLength = 1, captureStart = 0;
-    juce::uint32 seed = 0x5eed1234u;
-    float level = 0.0f, fadeStep = 0.001f;
-    bool frozen = false;
 };
 
 // ---------------------------------------------------------------------------

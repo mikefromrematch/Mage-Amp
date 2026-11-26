@@ -226,10 +226,10 @@ namespace
             { e("M11 42 L11 20 A13 13 0 0 1 37 20 L37 42", C),
               e("M20 10 L20 42 M28 10 L28 42 M11 29 L37 29", C),
               e("M7 42 L41 42", P) },
-            // octave: descent
-            { e("M10 12 L24 22 L38 12", V),
-              e("M10 25 L24 35 L38 25", V, K::stroke, 0.6f),
-              e(circle(24, 42, 2.4f), P, K::fill) },
+            // octave: ascent
+            { e("M10 36 L24 26 L38 36", V),
+              e("M10 23 L24 13 L38 23", V, K::stroke, 0.6f),
+              e(circle(24, 6, 2.4f), P, K::fill) },
             // drive: bolt
             { e("M28 4 L13 27 L23 27 L19 44 L35 19 L25 19 Z", P, K::strokeAndTint) },
             // delay: echoes
