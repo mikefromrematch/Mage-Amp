@@ -196,21 +196,28 @@ public:
     void prepare(double newSampleRate)
     {
         sampleRate = newSampleRate;
-        for (auto* b : { &inputHP, &tightHP, &smooth1, &stage2HP, &smooth2, &stage3HP, &smooth3, &brightPeak })
+        for (auto* b : filters())
             b->prepare(sampleRate);
+        // Tight voicing: like a mid boost pedal in front of a modern high-gain amp.
+        // Lows are cut hard before every clipping stage (so palm mutes stay punchy
+        // instead of farting out) and given back after the distortion by the tone
+        // stack and the power amp's DEPTH.
         inputHP.setHighPass(35.0f);
-        brightPeak.setPeak(2800.0f, 0.6f, 3.0f);   // input "bright cap" character
-        tightHP.setHighPass(140.0f, 0.6f);         // keeps palm mutes tight
-        smooth1.setLowPass(11000.0f, 0.6f);
-        stage2HP.setHighPass(60.0f);
-        smooth2.setLowPass(7000.0f, 0.6f);
-        stage3HP.setHighPass(90.0f);               // third stage: keeps high gain from going woolly
-        smooth3.setLowPass(6500.0f, 0.6f);         // and tames fizz
+        tightPre.setHighPass(130.0f, 0.7f);
+        midPush.setPeak(800.0f, 0.7f, 4.0f);
+        brightPeak.setPeak(2800.0f, 0.6f, 2.0f);
+        tightHP.setHighPass(180.0f, 0.6f);
+        smooth1.setLowPass(9000.0f, 0.6f);
+        stage2HP.setHighPass(140.0f);
+        smooth2.setLowPass(6500.0f, 0.6f);
+        stage3HP.setHighPass(120.0f);
+        smooth3.setLowPass(5500.0f, 0.6f);         // tames fizz
+        thump.setLowShelf(120.0f, 0.7f, 9.0f);     // weight back in, after the clipping
         dc.prepare(sampleRate);
     }
     void reset()
     {
-        for (auto* b : { &inputHP, &tightHP, &smooth1, &stage2HP, &smooth2, &stage3HP, &smooth3, &brightPeak })
+        for (auto* b : filters())
             b->reset();
         dc.reset();
     }
@@ -219,23 +226,29 @@ public:
     float process(float x, float g1, float g2, float g3) noexcept
     {
         x = inputHP.process(x);
+        x = tightPre.process(x);
+        x = midPush.process(x);
         x = brightPeak.process(x);
-        x = tubeClip(x * g1, 0.22f);
+        x = tubeClip(x * g1, 0.08f);
         x = tightHP.process(x);
         x = smooth1.process(x);
-        x = tubeClip(x * g2, -0.18f);
+        x = tubeClip(x * g2, -0.06f);
         x = stage2HP.process(x);
         x = smooth2.process(x);
-        x = tubeClip(x * g3, 0.12f);
+        x = tubeClip(x * g3, 0.04f);
         x = stage3HP.process(x);
         x = smooth3.process(x);
-        x = tubeClip(x * 1.8f, 0.10f) * 0.8f;
-        return dc.process(x);
+        x = tubeClip(x * 1.8f, 0.04f) * 0.8f;
+        return thump.process(dc.process(x));
     }
 
 private:
+    std::array<Biquad*, 11> filters() noexcept
+    {
+        return { &inputHP, &tightPre, &midPush, &brightPeak, &tightHP, &smooth1, &stage2HP, &smooth2, &stage3HP, &smooth3, &thump };
+    }
     double sampleRate = 44100.0;
-    Biquad inputHP, tightHP, smooth1, stage2HP, smooth2, stage3HP, smooth3, brightPeak;
+    Biquad inputHP, tightPre, midPush, brightPeak, tightHP, smooth1, stage2HP, smooth2, stage3HP, smooth3, thump;
     DCBlocker dc;
 };
 

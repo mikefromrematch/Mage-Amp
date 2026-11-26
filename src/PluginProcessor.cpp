@@ -451,9 +451,9 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     // Up to 5 the gain knob feels as it always has; above that the extra gain comes in
     // fast for modern high-gain tones, with a third stage joining in.
     const float hot = juce::jmax(0.0f, gainKnob - 5.0f);
-    stage1Gain.setTargetValue(dbToGain(4.0f + gainKnob * 2.6f + hot * 2.4f));
-    stage2Gain.setTargetValue(dbToGain(-4.0f + gainKnob * 2.2f + hot * 2.0f));
-    stage3Gain.setTargetValue(dbToGain(-12.0f + gainKnob * 2.4f));
+    stage1Gain.setTargetValue(dbToGain(4.0f + gainKnob * 2.6f + hot * 1.2f));
+    stage2Gain.setTargetValue(dbToGain(-4.0f + gainKnob * 2.2f + hot * 1.0f));
+    stage3Gain.setTargetValue(dbToGain(-14.0f + gainKnob * 1.8f));
     powerDrive.setTargetValue(dbToGain(-10.0f + P.master->load() * 1.6f));
     cleanGain.setTargetValue(dbToGain(-7.0f + gainKnob * 1.7f));
     cleanPower.setTargetValue(dbToGain(-5.0f + P.master->load() * 1.0f));
@@ -484,7 +484,7 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
             x = powerDC.process(x);
             x = presence.process(x);
             x = depth.process(x);
-            arcane = x * 0.7f;
+            arcane = x * 0.82f;   // level-matched to the looser voicing it replaced
         }
         if (cm > 0.0f)
         {
