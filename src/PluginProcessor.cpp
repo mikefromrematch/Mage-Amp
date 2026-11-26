@@ -237,8 +237,10 @@ void MageAudioProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock
     octave.prepare(sampleRate);
     drive.prepare(osRate);
     preamp.prepare(osRate);
-    for (auto* b : { &bass, &middle, &treble, &presence, &depth })
+    for (auto* b : { &bass, &middle, &treble, &presence, &depth, &powerHP, &thump })
         b->prepare(osRate);
+    powerHP.setHighPass(110.0f, 0.7f);
+    thump.setLowShelf(110.0f, 0.7f, 7.0f);
     powerDC.prepare(osRate);
     cleanPreamp.prepare(osRate);
     cleanPresence.prepare(osRate);
@@ -318,7 +320,7 @@ void MageAudioProcessor::updateFilters(bool force)
     }
     if (changed(lastDepth, p->depth->load()))
     {
-        depth.setPeak(90.0f, 0.9f, knobDb(lastDepth, 9.0f));
+        depth.setPeak(90.0f, 0.7f, knobDb(lastDepth, 9.0f));
         cleanDepth.setPeak(100.0f, 0.8f, knobDb(lastDepth, 7.0f));
     }
     {
@@ -451,9 +453,10 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     // Up to 5 the gain knob feels as it always has; above that the extra gain comes in
     // fast for modern high-gain tones, with a third stage joining in.
     const float hot = juce::jmax(0.0f, gainKnob - 5.0f);
-    stage1Gain.setTargetValue(dbToGain(4.0f + gainKnob * 2.6f + hot * 1.2f));
-    stage2Gain.setTargetValue(dbToGain(-4.0f + gainKnob * 2.2f + hot * 1.0f));
-    stage3Gain.setTargetValue(dbToGain(-14.0f + gainKnob * 1.8f));
+    const float top = juce::jmax(0.0f, gainKnob - 7.0f);   // the last three numbers really pile it on
+    stage1Gain.setTargetValue(dbToGain(4.0f + gainKnob * 2.6f + hot * 1.2f + top * 1.8f));
+    stage2Gain.setTargetValue(dbToGain(-4.0f + gainKnob * 2.2f + hot * 1.0f + top * 1.0f));
+    stage3Gain.setTargetValue(dbToGain(-14.0f + gainKnob * 1.8f + top * 0.6f));
     powerDrive.setTargetValue(dbToGain(-10.0f + P.master->load() * 1.6f));
     cleanGain.setTargetValue(dbToGain(-7.0f + gainKnob * 1.7f));
     cleanPower.setTargetValue(dbToGain(-5.0f + P.master->load() * 1.0f));
@@ -480,8 +483,11 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
             x = treble.process(x);
             // Power amp: master pushes the output stage into saturation; presence
             // and depth act like the feedback-loop shelving of a real power amp.
-            x = mage::dsp::tubeClip(x * powerDrive.getNextValue() * 1.3f, 0.08f);
+            // The power stage only sees the low end above ~110 Hz so heavy riffs don't
+            // smear; the weight goes back in clean afterwards.
+            x = mage::dsp::tubeClip(powerHP.process(x) * powerDrive.getNextValue() * 1.3f, 0.03f);
             x = powerDC.process(x);
+            x = thump.process(x);
             x = presence.process(x);
             x = depth.process(x);
             arcane = x * 0.82f;   // level-matched to the looser voicing it replaced

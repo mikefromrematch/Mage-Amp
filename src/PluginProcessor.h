@@ -78,6 +78,7 @@ private:
     mage::dsp::DrivePedal drive;
     mage::dsp::Preamp preamp;
     Biquad bass, middle, treble, presence, depth;   // run at oversampled rate
+    Biquad powerHP, thump;                          // keep lows out of the power stage, add them back after
     mage::dsp::DCBlocker powerDC;
     mage::dsp::CleanPreamp cleanPreamp;             // Fae channel (oversampled)
     Biquad cleanPresence, cleanDepth;

@@ -203,16 +203,15 @@ public:
         // instead of farting out) and given back after the distortion by the tone
         // stack and the power amp's DEPTH.
         inputHP.setHighPass(35.0f);
-        tightPre.setHighPass(130.0f, 0.7f);
+        tightPre.setHighPass(160.0f, 0.7f);
         midPush.setPeak(800.0f, 0.7f, 4.0f);
         brightPeak.setPeak(2800.0f, 0.6f, 2.0f);
-        tightHP.setHighPass(180.0f, 0.6f);
+        tightHP.setHighPass(220.0f, 0.6f);
         smooth1.setLowPass(9000.0f, 0.6f);
-        stage2HP.setHighPass(140.0f);
+        stage2HP.setHighPass(170.0f);
         smooth2.setLowPass(6500.0f, 0.6f);
-        stage3HP.setHighPass(120.0f);
+        stage3HP.setHighPass(140.0f);
         smooth3.setLowPass(5500.0f, 0.6f);         // tames fizz
-        thump.setLowShelf(120.0f, 0.7f, 9.0f);     // weight back in, after the clipping
         dc.prepare(sampleRate);
     }
     void reset()
@@ -239,16 +238,16 @@ public:
         x = stage3HP.process(x);
         x = smooth3.process(x);
         x = tubeClip(x * 1.8f, 0.04f) * 0.8f;
-        return thump.process(dc.process(x));
+        return dc.process(x);
     }
 
 private:
-    std::array<Biquad*, 11> filters() noexcept
+    std::array<Biquad*, 10> filters() noexcept
     {
-        return { &inputHP, &tightPre, &midPush, &brightPeak, &tightHP, &smooth1, &stage2HP, &smooth2, &stage3HP, &smooth3, &thump };
+        return { &inputHP, &tightPre, &midPush, &brightPeak, &tightHP, &smooth1, &stage2HP, &smooth2, &stage3HP, &smooth3 };
     }
     double sampleRate = 44100.0;
-    Biquad inputHP, tightPre, midPush, brightPeak, tightHP, smooth1, stage2HP, smooth2, stage3HP, smooth3, thump;
+    Biquad inputHP, tightPre, midPush, brightPeak, tightHP, smooth1, stage2HP, smooth2, stage3HP, smooth3;
     DCBlocker dc;
 };
 
@@ -488,7 +487,7 @@ public:
     {
         for (auto* b : { &resonance, &scoop, &cone, &rolloff1, &rolloff2 })
             b->prepare(sampleRate);
-        resonance.setPeak(105.0f, 1.3f, 4.0f);
+        resonance.setPeak(110.0f, 0.8f, 2.5f);   // broad: weight without a boomy, ringing bump
         scoop.setPeak(420.0f, 0.9f, -3.5f);
         cone.setPeak(2300.0f, 1.4f, 3.0f);
         rolloff1.setLowPass(5600.0f, 0.65f);
