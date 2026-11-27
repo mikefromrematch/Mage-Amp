@@ -107,3 +107,16 @@ target_link_libraries(MAGESpell PRIVATE
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
 )
+
+# JUCE ad-hoc signs each bundle and only then writes moduleinfo.json into the VST3
+# (and touches the standalone app's resources), so the bundles come out with a broken
+# signature that macOS and some DAWs reject. Re-sign each one as the very last
+# post-build step; these run after JUCE's own steps because they are added later.
+if(APPLE)
+    foreach(bundle_target IN ITEMS MAGE_VST3 MAGE_Standalone MAGESpell_VST3 MAGESpell_Standalone)
+        add_custom_command(TARGET ${bundle_target} POST_BUILD
+            COMMAND codesign --force --deep --sign - "$<TARGET_BUNDLE_DIR:${bundle_target}>"
+            COMMAND codesign --verify --deep --strict "$<TARGET_BUNDLE_DIR:${bundle_target}>"
+            VERBATIM)
+    endforeach()
+endif()
