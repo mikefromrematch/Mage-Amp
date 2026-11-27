@@ -7,19 +7,7 @@ namespace spellui
 {
 using APVTS = juce::AudioProcessorValueTreeState;
 
-// Segmented selector bound to a choice parameter.
-class ModePills final : public juce::Component, public juce::SettableTooltipClient
-{
-public:
-    ModePills(APVTS&, const juce::String& paramID, juce::Colour accent);
-    void paint(juce::Graphics&) override;
-    void mouseDown(const juce::MouseEvent&) override;
-private:
-    juce::StringArray labels;
-    juce::Colour accent;
-    int index = 0;
-    std::unique_ptr<juce::ParameterAttachment> attachment;
-};
+using ModePills = mage::ui::ChoicePills;
 
 // The glitch pattern: 16 cells, click to cycle Off > Stutter > Reverse > Jump.
 class StepGrid final : public juce::Component, public juce::SettableTooltipClient

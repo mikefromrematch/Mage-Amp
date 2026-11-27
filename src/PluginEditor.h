@@ -96,8 +96,10 @@ private:
     LedToggle chorusVibrato;
     Footswitch phaserSwitch, chorusSwitch;
     // Spell pedal (a compact MAGE Spell)
-    Knob spellType, spellGlitchDensity, spellGlitchSlice, spellGlitchMix, spellPitchShift, spellPitchGlide, spellPitchMix,
-         spellSwellAttack, spellSwellBloom, spellSwellMix;
+    mage::ui::ChoicePills spellPick;   // Glitch / Pitch / Swell
+    Knob spellGlitchDensity, spellGlitchSlice, spellGlitchJump, spellGlitchMix,
+         spellPitchShift, spellPitchGlide, spellPitchDetune, spellPitchMix,
+         spellSwellAttack, spellSwellBloom, spellSwellSize, spellSwellMix;
     LedToggle spellCast;
     Footswitch spellSwitch;
     // Compressor (input column)

@@ -15,18 +15,6 @@ namespace
 
     juce::RangedAudioParameter& param(APVTS& s, const juce::String& id) { return *s.getParameter(id); }
 
-    void pill(juce::Graphics& g, juce::Rectangle<float> r, const juce::String& text, bool selected, juce::Colour accent,
-              float fontSize = 12.0f)
-    {
-        g.setColour(selected ? accent.withAlpha(0.16f) : juce::Colours::transparentBlack);
-        g.fillRoundedRectangle(r, r.getHeight() * 0.5f);
-        g.setColour(selected ? accent : dim.brighter(0.25f));
-        g.drawRoundedRectangle(r.reduced(0.5f), r.getHeight() * 0.5f, 1.2f);
-        g.setColour(selected ? accent : muted);
-        g.setFont(font(fontSize, true, 0.1f));
-        g.drawText(text, r, juce::Justification::centred, false);
-    }
-
     // The three spell glyphs, drawn on a 30-unit grid inside `r`.
     void drawGlyph(juce::Graphics& g, int spell, juce::Rectangle<float> r, juce::Colour c)
     {
@@ -62,34 +50,6 @@ namespace
 }
 
 // ---------------------------------------------------------------------------
-ModePills::ModePills(APVTS& s, const juce::String& id, juce::Colour a) : accent(a)
-{
-    auto& p = param(s, id);
-    if (auto* choice = dynamic_cast<juce::AudioParameterChoice*>(&p))
-        for (auto& c : choice->choices)
-            labels.add(c.toUpperCase());
-    attachment = std::make_unique<juce::ParameterAttachment>(p, [this](float v) { index = juce::roundToInt(v); repaint(); }, s.undoManager);
-    attachment->sendInitialUpdate();
-    setMouseCursor(juce::MouseCursor::PointingHandCursor);
-}
-
-void ModePills::paint(juce::Graphics& g)
-{
-    useThemeOf(*this);
-    const int n = juce::jmax(1, labels.size());
-    const float gap = 6.0f, w = ((float)getWidth() - gap * (float)(n - 1)) / (float)n;
-    for (int i = 0; i < n; ++i)
-        pill(g, { (float)i * (w + gap), 0.0f, w, (float)getHeight() }, labels[i], i == index, accent);
-}
-
-void ModePills::mouseDown(const juce::MouseEvent& e)
-{
-    if (e.mods.isPopupMenu() || labels.isEmpty())
-        return;
-    const int i = juce::jlimit(0, labels.size() - 1, e.x * labels.size() / juce::jmax(1, getWidth()));
-    attachment->setValueAsCompleteGesture((float)i);
-}
-
 // ---------------------------------------------------------------------------
 StepGrid::StepGrid(APVTS& s)
 {

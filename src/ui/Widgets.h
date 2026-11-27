@@ -125,6 +125,21 @@ private:
     std::unique_ptr<juce::ParameterAttachment> attachment;
 };
 
+// Row of pill buttons bound to a choice parameter (one pill per choice).
+class ChoicePills final : public juce::Component, public juce::SettableTooltipClient
+{
+public:
+    ChoicePills(juce::AudioProcessorValueTreeState&, const juce::String& paramID, juce::Colour accent);
+    void paint(juce::Graphics&) override;
+    void mouseDown(const juce::MouseEvent&) override;
+    void setAccent(juce::Colour a) { accent = a; repaint(); }
+private:
+    juce::StringArray labels;
+    juce::Colour accent;
+    int index = 0;
+    std::unique_ptr<juce::ParameterAttachment> attachment;
+};
+
 // LED-style toggle bound to a bool parameter.
 class LedToggle final : public juce::ToggleButton
 {

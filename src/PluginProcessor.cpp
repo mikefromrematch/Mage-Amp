@@ -36,9 +36,9 @@ struct MageAudioProcessor::Params
         chorusEnabled = get("chorusEnabled"); chorusRate = get("chorusRate"); chorusDepth = get("chorusDepth");
         chorusTone = get("chorusTone"); chorusMix = get("chorusMix"); chorusVibrato = get("chorusVibrato");
         spellEnabled = get("spellEnabled"); spellType = get("spellType"); spellCast = get("spellCast");
-        spellGlitchDensity = get("spellGlitchDensity"); spellGlitchSlice = get("spellGlitchSlice"); spellGlitchMix = get("spellGlitchMix");
-        spellPitchShift = get("spellPitchShift"); spellPitchGlide = get("spellPitchGlide"); spellPitchMix = get("spellPitchMix");
-        spellSwellAttack = get("spellSwellAttack"); spellSwellBloom = get("spellSwellBloom"); spellSwellMix = get("spellSwellMix");
+        spellGlitchDensity = get("spellGlitchDensity"); spellGlitchSlice = get("spellGlitchSlice"); spellGlitchMix = get("spellGlitchMix"); spellGlitchJump = get("spellGlitchJump");
+        spellPitchShift = get("spellPitchShift"); spellPitchGlide = get("spellPitchGlide"); spellPitchMix = get("spellPitchMix"); spellPitchDetune = get("spellPitchDetune");
+        spellSwellAttack = get("spellSwellAttack"); spellSwellBloom = get("spellSwellBloom"); spellSwellMix = get("spellSwellMix"); spellSwellSize = get("spellSwellSize");
         for (int ch = 0; ch < 2; ++ch)
         {
             for (int n = 0; n < mage::numSlots; ++n)
@@ -61,7 +61,7 @@ struct MageAudioProcessor::Params
         *phaserEnabled, *phaserRate, *phaserDepth, *phaserFeedback, *phaserMix, *phaserStages,
         *chorusEnabled, *chorusRate, *chorusDepth, *chorusTone, *chorusMix, *chorusVibrato,
         *spellEnabled, *spellType, *spellCast, *spellGlitchDensity, *spellGlitchSlice, *spellGlitchMix,
-        *spellPitchShift, *spellPitchGlide, *spellPitchMix, *spellSwellAttack, *spellSwellBloom, *spellSwellMix;
+        *spellPitchShift, *spellPitchGlide, *spellPitchMix, *spellSwellAttack, *spellSwellBloom, *spellSwellMix, *spellGlitchJump, *spellPitchDetune, *spellSwellSize;
     std::atomic<float>* slot[2][mage::numSlots] {};
     std::atomic<float>* ampPos[2] {};
     std::array<std::atomic<float>*, mage::numPedals> enabled {};   // indexed by mage::Pedal
@@ -223,6 +223,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout MageAudioProcessor::createLa
     ranged("spellSwellAttack", "Spell Swell Attack", 20.0f, 2000.0f, 400.0f, 450.0f, msText, "ms");
     ranged("spellSwellBloom", "Spell Swell Bloom", 0.0f, 1.0f, 0.0f, 0.6f, pctText, "");
     ranged("spellSwellMix", "Spell Swell Mix", 0.0f, 1.0f, 0.0f, 0.7f, pctText, "");
+    layout.add(std::make_unique<juce::AudioParameterInt>(juce::ParameterID { "spellGlitchJump", 1 },
+        "Spell Glitch Jump", -12, 12, 12, juce::AudioParameterIntAttributes().withStringFromValueFunction(
+            [](int v, int) { return (v > 0 ? "+" : "") + juce::String(v) + " st"; })));
+    ranged("spellPitchDetune", "Spell Pitch Detune", 0.0f, 50.0f, 0.0f, 7.0f,
+           [](float v, int) { return juce::String(juce::roundToInt(v)) + " ct"; }, "ct");
+    ranged("spellSwellSize", "Spell Swell Size", 0.0f, 1.0f, 0.0f, 0.7f, pctText, "");
 
     // Pedalboards: four slots per channel plus the amp's place among them.
     for (int ch = 0; ch < 2; ++ch)
@@ -827,7 +833,7 @@ void MageAudioProcessor::processSpellPedal(float* L, float* R, int n)
         gp.mode = mage::spell::Glitch::scatter;
         gp.sliceBeats = slices[juce::jlimit(0, 4, juce::roundToInt(P.spellGlitchSlice->load()))];
         gp.density = P.spellGlitchDensity->load();
-        gp.jumpSemis = 12.0f;
+        gp.jumpSemis = P.spellGlitchJump->load();
         gp.mix = cast ? juce::jmax(0.85f, P.spellGlitchMix->load()) : P.spellGlitchMix->load();
         gp.cast = cast;
         spellGlitch.setTransport(bpm, ppq);
@@ -846,7 +852,7 @@ void MageAudioProcessor::processSpellPedal(float* L, float* R, int n)
         pp.shiftSemis = P.spellPitchShift->load();
         pp.whammy = 1.0f;
         pp.glideMs = P.spellPitchGlide->load();
-        pp.detuneCents = 7.0f;
+        pp.detuneCents = P.spellPitchDetune->load();
         pp.mix = 1.0f;
         spellPitch.process(L, R, n, pp);
         const float mix = P.spellPitchMix->load();
@@ -865,7 +871,7 @@ void MageAudioProcessor::processSpellPedal(float* L, float* R, int n)
         sp.mode = cast ? mage::spell::Swell::bloom : mage::spell::Swell::swell;
         sp.attackMs = P.spellSwellAttack->load();
         sp.bloom = P.spellSwellBloom->load();
-        sp.size = 0.7f;
+        sp.size = P.spellSwellSize->load();
         sp.mix = P.spellSwellMix->load();
         spellSwell.process(L, R, n, sp);
         // The reverb tail builds on dense amp tones; keep the pedal's level close to bypass.
