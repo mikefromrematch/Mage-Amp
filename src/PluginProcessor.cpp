@@ -237,10 +237,14 @@ void MageAudioProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock
     octave.prepare(sampleRate);
     drive.prepare(osRate);
     preamp.prepare(osRate);
-    for (auto* b : { &bass, &middle, &treble, &presence, &depth, &powerHP, &thump })
+    for (auto* b : { &bass, &middle, &treble, &presence, &depth, &powerHP, &thump, &voiceScoop, &voiceAir, &voiceSub })
         b->prepare(osRate);
-    powerHP.setHighPass(110.0f, 0.7f);
-    thump.setLowShelf(110.0f, 0.7f, 7.0f);
+    powerHP.setHighPass(65.0f, 0.7f);
+    // Arcane's speaker voicing, on top of the shared cab: a broad low-end thump,
+    // a scooped upper-mid honk and a little more bite up top. Thump and air ease
+    // off as the gain rises (see updateFilters) so heavy settings stay tight.
+    voiceScoop.setPeak(630.0f, 1.0f, -10.0f);
+    voiceSub.setHighPass(60.0f, 0.7f);   // keeps sub rumble out of the thump
     powerDC.prepare(osRate);
     cleanPreamp.prepare(osRate);
     cleanPresence.prepare(osRate);
@@ -318,9 +322,15 @@ void MageAudioProcessor::updateFilters(bool force)
         presence.setHighShelf(3800.0f, 0.6f, knobDb(lastPresence, 9.0f));
         cleanPresence.setHighShelf(4500.0f, 0.6f, knobDb(lastPresence, 8.0f));
     }
+    if (changed(lastVoiceGain, p->gain->load()))
+    {
+        const float over = juce::jmax(0.0f, lastVoiceGain - 5.8f);
+        thump.setPeak(80.0f, 0.5f, 12.0f - 1.2f * over);
+        voiceAir.setHighShelf(5000.0f, 0.7f, 6.2f - 1.8f * over);
+    }
     if (changed(lastDepth, p->depth->load()))
     {
-        depth.setPeak(90.0f, 0.7f, knobDb(lastDepth, 9.0f));
+        depth.setPeak(100.0f, 0.8f, knobDb(lastDepth, 9.0f));
         cleanDepth.setPeak(100.0f, 0.8f, knobDb(lastDepth, 7.0f));
     }
     {
@@ -483,14 +493,12 @@ void MageAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
             x = treble.process(x);
             // Power amp: master pushes the output stage into saturation; presence
             // and depth act like the feedback-loop shelving of a real power amp.
-            // The power stage only sees the low end above ~110 Hz so heavy riffs don't
-            // smear; the weight goes back in clean afterwards.
             x = mage::dsp::tubeClip(powerHP.process(x) * powerDrive.getNextValue() * 1.3f, 0.03f);
             x = powerDC.process(x);
-            x = thump.process(x);
             x = presence.process(x);
             x = depth.process(x);
-            arcane = x * 0.82f;   // level-matched to the looser voicing it replaced
+            x = voiceAir.process(voiceScoop.process(thump.process(voiceSub.process(x))));
+            arcane = x * 0.66f;
         }
         if (cm > 0.0f)
         {

@@ -78,7 +78,7 @@ private:
     mage::dsp::DrivePedal drive;
     mage::dsp::Preamp preamp;
     Biquad bass, middle, treble, presence, depth;   // run at oversampled rate
-    Biquad powerHP, thump;                          // keep lows out of the power stage, add them back after
+    Biquad powerHP, thump, voiceScoop, voiceAir, voiceSub;                          // keep lows out of the power stage, add them back after
     mage::dsp::DCBlocker powerDC;
     mage::dsp::CleanPreamp cleanPreamp;             // Fae channel (oversampled)
     Biquad cleanPresence, cleanDepth;
@@ -113,7 +113,7 @@ private:
     // Last values used to compute filter coefficients (avoid recomputing every block).
     float lastBass = -1, lastMid = -1, lastTreble = -1, lastPresence = -1, lastDepth = -1,
           lastLowCut = -1, lastHighCut = -1, lastDriveTone = -1, lastOctTone = -1,
-          lastCleanBass = -1, lastCleanMid = -1, lastCleanTreble = -1;
+          lastCleanBass = -1, lastCleanMid = -1, lastCleanTreble = -1, lastVoiceGain = -1.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MageAudioProcessor)
 };

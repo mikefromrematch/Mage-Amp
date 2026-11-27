@@ -198,20 +198,20 @@ public:
         sampleRate = newSampleRate;
         for (auto* b : filters())
             b->prepare(sampleRate);
-        // Tight voicing: like a mid boost pedal in front of a modern high-gain amp.
-        // Lows are cut hard before every clipping stage (so palm mutes stay punchy
-        // instead of farting out) and given back after the distortion by the tone
-        // stack and the power amp's DEPTH.
+        // Tight voicing, matched against a reference metal rhythm tone: lows are cut
+        // before the first clipping stage (like a boost pedal in front of a high-gain
+        // head) so palm mutes stay punchy; later stages pass more of the lows so the
+        // riff keeps its weight. The power amp adds the low-end thump back after all the clipping.
         inputHP.setHighPass(35.0f);
-        tightPre.setHighPass(160.0f, 0.7f);
-        midPush.setPeak(800.0f, 0.7f, 4.0f);
+        tightPre.setHighPass(130.0f, 0.6f);
+        midPush.setPeak(500.0f, 0.8f, 5.4f);
         brightPeak.setPeak(2800.0f, 0.6f, 2.0f);
-        tightHP.setHighPass(220.0f, 0.6f);
+        tightHP.setHighPass(100.0f, 0.5f);
         smooth1.setLowPass(9000.0f, 0.6f);
-        stage2HP.setHighPass(170.0f);
+        stage2HP.setHighPass(90.0f, 0.6f);
         smooth2.setLowPass(6500.0f, 0.6f);
-        stage3HP.setHighPass(140.0f);
-        smooth3.setLowPass(5500.0f, 0.6f);         // tames fizz
+        stage3HP.setHighPass(60.0f, 0.6f);
+        smooth3.setLowPass(6000.0f, 0.6f);         // tames fizz
         dc.prepare(sampleRate);
     }
     void reset()

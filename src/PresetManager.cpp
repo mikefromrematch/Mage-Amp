@@ -13,8 +13,8 @@ PresetManager::PresetManager(juce::AudioProcessorValueTreeState& s, juce::UndoMa
 {
     factory = {
         { "Granophyre Inspired", {} },
-        { "Arcane Rhythm", { { "gain", 7.2f }, { "bass", 5.5f }, { "mid", 4.2f }, { "treble", 6.2f },
-                             { "presence", 6.0f }, { "depth", 6.0f }, { "master", 5.5f }, { "gate", -50.0f },
+        { "Arcane Rhythm", { { "gain", 7.2f }, { "bass", 5.5f }, { "mid", 4.2f }, { "treble", 5.6f },
+                             { "presence", 5.2f }, { "depth", 6.0f }, { "master", 5.5f }, { "gate", -50.0f },
                              { "driveEnabled", 1.0f }, { "drive", 1.0f }, { "driveTone", 6.0f },
                              { "driveLevel", 7.0f }, { "lowCut", 85.0f }, { "highCut", 9000.0f } } },
         { "Glass Spell", { { "gain", 1.2f }, { "bass", 5.5f }, { "treble", 6.5f }, { "presence", 5.5f },
