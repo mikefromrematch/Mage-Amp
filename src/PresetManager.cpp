@@ -12,7 +12,6 @@ PresetManager::PresetManager(juce::AudioProcessorValueTreeState& s, juce::UndoMa
     : state(s), undoManager(undo)
 {
     factory = {
-        { "Granophyre Inspired", {} },
         { "Arcane Rhythm", { { "gain", 7.2f }, { "bass", 5.5f }, { "mid", 4.2f }, { "treble", 5.6f },
                              { "presence", 5.2f }, { "depth", 6.0f }, { "master", 5.5f }, { "gate", -50.0f },
                              { "driveEnabled", 1.0f }, { "drive", 1.0f }, { "driveTone", 6.0f },
@@ -60,8 +59,10 @@ PresetManager::PresetManager(juce::AudioProcessorValueTreeState& s, juce::UndoMa
                             { "chorusRate", 0.4f }, { "chorusDepth", 0.6f }, { "chorusMix", 0.4f }, { "output", 8.5f } } },
     };
 
+    // A fresh instance starts on the first factory preset (the host restores its
+    // own saved state afterwards, if it has one).
     if (!state.state.hasProperty(presetNameId))
-        state.state.setProperty(presetNameId, factory.front().name, nullptr);
+        loadPreset(0);
     loadedSnapshot = snapshot();
 }
 
