@@ -9,13 +9,13 @@
 // effects loop. Left to right is the signal path.
 namespace mage
 {
-enum class Pedal { octave, drive, shimmer, phaser, chorus, delay, reverb };
-constexpr int numPedals = 7;
+enum class Pedal { octave, drive, shimmer, phaser, chorus, delay, reverb, spell };
+constexpr int numPedals = 8;
 constexpr int numSlots = 4;
 
 inline const juce::StringArray& pedalNames()
 {
-    static const juce::StringArray names { "Octave", "Drive", "Shimmer", "Phaser", "Chorus / Vibrato", "Delay", "Reverb" };
+    static const juce::StringArray names { "Octave", "Drive", "Shimmer", "Phaser", "Chorus / Vibrato", "Delay", "Reverb", "Spell" };
     return names;
 }
 

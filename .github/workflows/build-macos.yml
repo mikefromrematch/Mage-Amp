@@ -28,27 +28,30 @@ jobs:
       - name: Configure JUCE project
         run: /opt/homebrew/bin/cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build standalone app
-        run: /opt/homebrew/bin/cmake --build build --config Release --target MAGE_Standalone --parallel 2
+      - name: Build standalone apps
+        run: /opt/homebrew/bin/cmake --build build --config Release --target MAGE_Standalone MAGESpell_Standalone --parallel 2
 
-      - name: Package standalone app
+      - name: Package standalone apps
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p dist
-          APP="$(find build -type d -name 'MAGE.app' -print -quit)"
-          if [[ -z "$APP" ]]; then
-            echo "MAGE.app was not produced. Build output:"
-            find build -maxdepth 7 -print
-            exit 1
-          fi
-          ditto "$APP" dist/MAGE.app
-          # Ad-hoc sign the whole bundle so macOS sees a valid (if unidentified)
-          # signature instead of reporting the app as "damaged".
-          codesign --force --deep --sign - dist/MAGE.app
-          codesign --verify --deep --strict --verbose=2 dist/MAGE.app
+          rm -rf dist && mkdir -p dist/MAGE
+          for NAME in "MAGE" "MAGE Spell"; do
+            APP="$(find build -type d -name "$NAME.app" -print -quit)"
+            if [[ -z "$APP" ]]; then
+              echo "$NAME.app was not produced. Build output:"
+              find build -maxdepth 7 -name '*.app' -print
+              exit 1
+            fi
+            ditto "$APP" "dist/MAGE/$NAME.app"
+            # Ad-hoc sign the whole bundle so macOS sees a valid (if unidentified)
+            # signature instead of reporting the app as "damaged".
+            codesign --force --deep --sign - "dist/MAGE/$NAME.app"
+            codesign --verify --deep --strict --verbose=2 "dist/MAGE/$NAME.app"
+          done
+          # One zip holding a "MAGE" folder with both apps.
           cd dist
-          ditto -c -k --sequesterRsrc --keepParent MAGE.app MAGE-macOS.zip
+          ditto -c -k --sequesterRsrc --keepParent MAGE MAGE-macOS.zip
 
       - name: Upload test app
         uses: actions/upload-artifact@v4

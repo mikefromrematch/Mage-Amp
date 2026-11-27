@@ -3,7 +3,8 @@
 
 namespace mage
 {
-MidiLearn::MidiLearn(juce::AudioProcessor& processor)
+MidiLearn::MidiLearn(juce::AudioProcessor& processor, juce::String mapFileName)
+    : mapFile(std::move(mapFileName))
 {
     for (auto* p : processor.getParameters())
     {
@@ -143,14 +144,14 @@ void MidiLearn::fromValueTree(const juce::ValueTree& tree)
     changes.fetch_add(1);
 }
 
-static juce::File defaultMapFile()
+static juce::File defaultMapFile(const juce::String& name)
 {
-    return PresetManager::getUserPresetFolder().getParentDirectory().getChildFile("MidiMap.xml");
+    return PresetManager::getUserPresetFolder().getParentDirectory().getChildFile(name);
 }
 
 void MidiLearn::saveAsDefault() const
 {
-    const auto file = defaultMapFile();
+    const auto file = defaultMapFile(mapFile);
     file.getParentDirectory().createDirectory();
     if (auto xml = toValueTree().createXml())
         xml->writeTo(file);
@@ -158,7 +159,7 @@ void MidiLearn::saveAsDefault() const
 
 void MidiLearn::loadDefault()
 {
-    if (auto xml = juce::XmlDocument::parse(defaultMapFile()))
+    if (auto xml = juce::XmlDocument::parse(defaultMapFile(mapFile)))
         fromValueTree(juce::ValueTree::fromXml(*xml));
 }
 } // namespace mage

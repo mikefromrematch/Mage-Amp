@@ -16,7 +16,7 @@ namespace mage
 class MidiLearn
 {
 public:
-    explicit MidiLearn(juce::AudioProcessor&);
+    explicit MidiLearn(juce::AudioProcessor&, juce::String mapFileName = "MidiMap.xml");
 
     // Audio thread.
     void process(const juce::MidiBuffer&) noexcept;
@@ -39,7 +39,7 @@ public:
     void fromValueTree(const juce::ValueTree&);
     static constexpr const char* treeType = "MidiMap";
 
-    // The user's map is also kept in ~/Documents/MAGE/MidiMap.xml so new instances start with it.
+    // The user's map is also kept in ~/Documents/MAGE/<mapFileName> so new instances start with it.
     void saveAsDefault() const;
     void loadDefault();
 
@@ -54,5 +54,6 @@ private:
     std::array<std::atomic<int>, 128> ccToParam;
     std::atomic<int> learning { -1 };
     std::atomic<int> changes { 0 };
+    juce::String mapFile;
 };
 } // namespace mage

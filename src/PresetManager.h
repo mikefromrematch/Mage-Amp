@@ -8,7 +8,13 @@ namespace mage
 class PresetManager
 {
 public:
+    struct Factory { juce::String name; std::vector<std::pair<juce::String, float>> values; };
+
+    // The amp's presets (folder ~/Documents/MAGE/Presets).
     PresetManager(juce::AudioProcessorValueTreeState& state, juce::UndoManager& undo);
+    // Another plugin in the suite: its own factory list and preset folder under ~/Documents/MAGE.
+    PresetManager(juce::AudioProcessorValueTreeState& state, juce::UndoManager& undo,
+                  std::vector<Factory> factoryPresets, const juce::String& folderName);
 
     juce::StringArray getPresetNames() const;      // factory first, then user
     int getNumFactoryPresets() const;
@@ -23,10 +29,10 @@ public:
     bool deleteUserPreset(const juce::String& name);
     bool isFactory(const juce::String& name) const;
 
-    static juce::File getUserPresetFolder();
+    static juce::File getUserPresetFolder();       // the amp's folder; ~/Documents/MAGE is its parent
+    juce::File getFolder() const;                  // this instance's preset folder
 
 private:
-    struct Factory { juce::String name; std::vector<std::pair<juce::String, float>> values; };
     void step(int delta);
     void applyValues(const std::function<float(juce::RangedAudioParameter&)>& valueFor);
     void setCurrentName(const juce::String& name);
@@ -36,6 +42,7 @@ private:
     juce::AudioProcessorValueTreeState& state;
     juce::UndoManager& undoManager;
     std::vector<Factory> factory;
+    juce::String folderName { "Presets" };
     juce::String loadedSnapshot;
 };
 } // namespace mage

@@ -52,9 +52,53 @@ target_compile_definitions(MAGE PUBLIC
 
 juce_add_binary_data(MageAssets SOURCES
     assets/mage_mark_ink.png assets/mage_mark_glow.png
-    assets/mage_wordmark_ink.png assets/mage_wordmark_glow.png)
+    assets/mage_wordmark_ink.png assets/mage_wordmark_glow.png
+    assets/spell_sigil_ink.png assets/spell_sigil_glow.png)
 
 target_link_libraries(MAGE PRIVATE
+    MageAssets
+    juce::juce_audio_utils
+    juce::juce_dsp
+    juce::juce_gui_extra
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_lto_flags
+    juce::juce_recommended_warning_flags
+)
+
+# MAGE Spell: Glitch / Pitch / Swell multi-effect, same suite and shared UI code.
+juce_add_plugin(MAGESpell
+    COMPANY_NAME "MAGE Audio"
+    PRODUCT_NAME "MAGE Spell"
+    BUNDLE_ID "com.mageaudio.spell"
+    PLUGIN_MANUFACTURER_CODE MgAu
+    PLUGIN_CODE Mspl
+    FORMATS VST3 Standalone
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT TRUE
+    NEEDS_MIDI_OUTPUT FALSE
+    IS_MIDI_EFFECT FALSE
+    MICROPHONE_PERMISSION_ENABLED TRUE
+    MICROPHONE_PERMISSION_TEXT "MAGE Spell needs audio input access so you can play your guitar through it."
+)
+
+juce_generate_juce_header(MAGESpell)
+
+target_sources(MAGESpell PRIVATE
+    src/spell/SpellProcessor.cpp
+    src/spell/SpellEditor.cpp
+    src/PresetManager.cpp
+    src/MidiLearn.cpp
+    src/ui/Widgets.cpp
+)
+
+target_include_directories(MAGESpell PRIVATE src)
+
+target_compile_definitions(MAGESpell PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+)
+
+target_link_libraries(MAGESpell PRIVATE
     MageAssets
     juce::juce_audio_utils
     juce::juce_dsp

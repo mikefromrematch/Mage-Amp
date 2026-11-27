@@ -142,7 +142,9 @@ namespace
                                        juce::ImageCache::getFromMemory(BinaryData::mage_mark_glow_png, BinaryData::mage_mark_glow_pngSize) };
         static const LogoImages word { juce::ImageCache::getFromMemory(BinaryData::mage_wordmark_ink_png, BinaryData::mage_wordmark_ink_pngSize),
                                        juce::ImageCache::getFromMemory(BinaryData::mage_wordmark_glow_png, BinaryData::mage_wordmark_glow_pngSize) };
-        return logo == Logo::mark ? mark : word;
+        static const LogoImages sigil { juce::ImageCache::getFromMemory(BinaryData::spell_sigil_ink_png, BinaryData::spell_sigil_ink_pngSize),
+                                        juce::ImageCache::getFromMemory(BinaryData::spell_sigil_glow_png, BinaryData::spell_sigil_glow_pngSize) };
+        return logo == Logo::mark ? mark : logo == Logo::wordmark ? word : sigil;
     }
 }
 
@@ -168,7 +170,7 @@ void drawLogo(juce::Graphics& g, Logo logo, juce::Rectangle<float> area)
     g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
     g.setColour(t.glow.withAlpha(0.6f));
     g.drawImageTransformed(images.glow, tf, true);
-    const bool diagonal = logo == Logo::mark;
+    const bool diagonal = logo != Logo::wordmark;
     juce::ColourGradient ink(t.cyan, target.getX(), target.getY(),
                              t.pink, target.getRight(), diagonal ? target.getBottom() : target.getY() + target.getHeight() * 0.18f, false);
     ink.addColour(0.5, t.violet);
@@ -204,7 +206,7 @@ namespace
             return RuneElement { juce::Drawable::parseSVGPath(d), colour, alpha, kind };
         };
 
-        static const std::array<std::vector<RuneElement>, 17> table {{
+        static const std::array<std::vector<RuneElement>, 18> table {{
             // gain: flame
             { e("M24 5 L33 22 L28 24 L34 34 L24 43 L14 34 L20 24 L15 22 Z", C),
               e("M24 26 L28 33 L24 37 L20 33 Z", P, K::fill) },
@@ -269,6 +271,11 @@ namespace
             { e("M24 5 L24 17 M18 11 L24 17 L30 11", C),
               e("M24 43 L24 31 M18 37 L24 31 L30 37", C),
               e("M9 24 L39 24", P) },
+            // spell: the Spell triangle sigil, an eye in its heart
+            { e("M24 6 L42 38 L6 38 Z", V, K::strokeAndTint),
+              e("M15 30 Q24 21 33 30 Q24 36 15 30 Z", P, K::stroke, 0.85f),
+              e(circle(24, 29.5f, 2.6f), C, K::fill),
+              e(circle(24, 3.2f, 1.5f) + circle(44.5f, 41, 1.5f) + circle(3.5f, 41, 1.5f), I, K::fill) },
         }};
         return table[static_cast<size_t>(rune)];
     }

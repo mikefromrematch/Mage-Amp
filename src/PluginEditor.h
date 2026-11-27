@@ -95,6 +95,11 @@ private:
     Knob chorusRate, chorusDepth, chorusTone, chorusMix;
     LedToggle chorusVibrato;
     Footswitch phaserSwitch, chorusSwitch;
+    // Spell pedal (a compact MAGE Spell)
+    Knob spellType, spellGlitchDensity, spellGlitchSlice, spellGlitchMix, spellPitchShift, spellPitchGlide, spellPitchMix,
+         spellSwellAttack, spellSwellBloom, spellSwellMix;
+    LedToggle spellCast;
+    Footswitch spellSwitch;
     // Compressor (input column)
     Knob compSustain, compLevel;
     LedToggle compOn, compParallel;
@@ -116,7 +121,7 @@ private:
     bool faeChannel = false;
     std::unique_ptr<juce::ParameterAttachment> channelWatcher;
 
-    std::unique_ptr<juce::ParameterAttachment> syncWatcher;
+    std::unique_ptr<juce::ParameterAttachment> syncWatcher, spellTypeWatcher;
     std::unique_ptr<juce::FileChooser> irChooser;
     std::unique_ptr<juce::AlertWindow> saveDialog;
 

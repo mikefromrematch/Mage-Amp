@@ -8,10 +8,11 @@ namespace
     const juce::String presetExtension { ".magepreset" };
 }
 
-PresetManager::PresetManager(juce::AudioProcessorValueTreeState& s, juce::UndoManager& undo)
-    : state(s), undoManager(undo)
+namespace
 {
-    factory = {
+    std::vector<PresetManager::Factory> ampFactoryPresets()
+    {
+        return {
         { "Arcane Rhythm", { { "gain", 7.2f }, { "bass", 5.5f }, { "mid", 4.2f }, { "treble", 5.6f },
                              { "presence", 5.2f }, { "depth", 6.0f }, { "master", 5.5f }, { "gate", -50.0f },
                              { "driveEnabled", 1.0f }, { "drive", 1.0f }, { "driveTone", 6.0f },
@@ -58,7 +59,18 @@ PresetManager::PresetManager(juce::AudioProcessorValueTreeState& s, juce::UndoMa
                             { "shimmerDecay", 0.75f }, { "shimmerAmount", 0.6f }, { "chorusEnabled", 1.0f },
                             { "chorusRate", 0.4f }, { "chorusDepth", 0.6f }, { "chorusMix", 0.4f }, { "output", 8.5f } } },
     };
+    }
+}
 
+PresetManager::PresetManager(juce::AudioProcessorValueTreeState& s, juce::UndoManager& undo)
+    : PresetManager(s, undo, ampFactoryPresets(), "Presets")
+{
+}
+
+PresetManager::PresetManager(juce::AudioProcessorValueTreeState& s, juce::UndoManager& undo,
+                             std::vector<Factory> factoryPresets, const juce::String& folder)
+    : state(s), undoManager(undo), factory(std::move(factoryPresets)), folderName(folder)
+{
     // A fresh instance starts on the first factory preset (the host restores its
     // own saved state afterwards, if it has one).
     if (!state.state.hasProperty(presetNameId))
@@ -72,9 +84,14 @@ juce::File PresetManager::getUserPresetFolder()
         .getChildFile("MAGE").getChildFile("Presets");
 }
 
+juce::File PresetManager::getFolder() const
+{
+    return getUserPresetFolder().getParentDirectory().getChildFile(folderName);
+}
+
 juce::Array<juce::File> PresetManager::getUserPresetFiles() const
 {
-    auto files = getUserPresetFolder().findChildFiles(juce::File::findFiles, false, "*" + presetExtension);
+    auto files = getFolder().findChildFiles(juce::File::findFiles, false, "*" + presetExtension);
     files.sort();
     return files;
 }
@@ -154,7 +171,7 @@ void PresetManager::loadPreset(int index)
     }
     else
     {
-        const auto file = getUserPresetFolder().getChildFile(names[index] + presetExtension);
+        const auto file = getFolder().getChildFile(names[index] + presetExtension);
         const auto xml = juce::XmlDocument::parse(file);
         if (xml == nullptr || !xml->hasTagName("MAGEPreset"))
             return;
@@ -197,7 +214,7 @@ bool PresetManager::saveUserPreset(const juce::String& rawName)
         }
     }
 
-    const auto folder = getUserPresetFolder();
+    const auto folder = getFolder();
     if (!folder.createDirectory())
         return false;
     if (!xml.writeTo(folder.getChildFile(name + presetExtension)))
@@ -212,7 +229,7 @@ bool PresetManager::deleteUserPreset(const juce::String& name)
 {
     if (isFactory(name))
         return false;
-    const auto file = getUserPresetFolder().getChildFile(name + presetExtension);
+    const auto file = getFolder().getChildFile(name + presetExtension);
     const bool ok = file.existsAsFile() && file.deleteFile();
     if (ok && getCurrentName() == name)
         loadPreset(0);

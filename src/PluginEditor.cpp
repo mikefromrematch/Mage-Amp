@@ -18,14 +18,14 @@ namespace layout
                          { 660.0f, 492.0f, 300.0f, 388.0f }, { 980.0f, 492.0f, 300.0f, 388.0f } };
     const R output { 1300.0f, 492.0f, 280.0f, 388.0f };
     // Indexed by mage::Pedal.
-    const char* pedalTitles[mage::numPedals] = { "OCTAVE", "DRIVE", "SHIMMER", "PHASER", "CHORUS", "DELAY", "REVERB" };
+    const char* pedalTitles[mage::numPedals] = { "OCTAVE", "DRIVE", "SHIMMER", "PHASER", "CHORUS", "DELAY", "REVERB", "SPELL" };
     const char* pedalTaglines[2][mage::numPedals] = {
         { "UPPER OCTAVE FUZZ", "MID-FOCUSED OVERDRIVE", "OCTAVE-UP HALO",
-          "ARCANE VORTEX", "SPECTRAL DOUBLING", "WARM ANALOG ECHO", "ETHEREAL SPACE" },
+          "ARCANE VORTEX", "SPECTRAL DOUBLING", "WARM ANALOG ECHO", "ETHEREAL SPACE", "GLITCH  -  PITCH  -  SWELL" },
         { "UPPER OCTAVE FUZZ", "MID-FOCUSED OVERDRIVE", "OCTAVE-UP HALO",
-          "MOONTIDE SWEEP", "FAERIE CHORUS", "MOONLIT ECHO", "FAERIE GLADE" } };
+          "MOONTIDE SWEEP", "FAERIE CHORUS", "MOONLIT ECHO", "FAERIE GLADE", "GLITCH  -  PITCH  -  SWELL" } };
     const Rune pedalRunes[mage::numPedals] = { Rune::octave, Rune::drive, Rune::shimmer,
-                                               Rune::phaser, Rune::chorus, Rune::delay, Rune::reverb };
+                                               Rune::phaser, Rune::chorus, Rune::delay, Rune::reverb, Rune::spell };
     // x centre of each gap an amp marker can sit in (before slot 0 ... after slot 3).
     const float ampGapX[] = { 20.0f, 330.0f, 650.0f, 970.0f, 1290.0f };
     constexpr float cableY = 492.0f + 187.5f;
@@ -67,6 +67,18 @@ MainPanel::MainPanel(MageAudioProcessor& p)
       chorusTone(p.state, "chorusTone", "TONE"), chorusMix(p.state, "chorusMix", "MIX"),
       chorusVibrato(p.state, "chorusVibrato", "VIBRATO", violet),
       phaserSwitch(p.state, "phaserEnabled", violet), chorusSwitch(p.state, "chorusEnabled", violet),
+      spellType(p.state, "spellType", "SPELL", violet),
+      spellGlitchDensity(p.state, "spellGlitchDensity", "DENSITY", violet),
+      spellGlitchSlice(p.state, "spellGlitchSlice", "SLICE", violet),
+      spellGlitchMix(p.state, "spellGlitchMix", "MIX", violet),
+      spellPitchShift(p.state, "spellPitchShift", "SHIFT", violet),
+      spellPitchGlide(p.state, "spellPitchGlide", "GLIDE", violet),
+      spellPitchMix(p.state, "spellPitchMix", "MIX", violet),
+      spellSwellAttack(p.state, "spellSwellAttack", "ATTACK", violet),
+      spellSwellBloom(p.state, "spellSwellBloom", "BLOOM", violet),
+      spellSwellMix(p.state, "spellSwellMix", "MIX", violet),
+      spellCast(p.state, "spellCast", "CAST", violet),
+      spellSwitch(p.state, "spellEnabled", violet),
       compSustain(p.state, "compSustain", "SUSTAIN", violet), compLevel(p.state, "compLevel", "LEVEL", violet),
       compOn(p.state, "compEnabled", "ON", violet), compParallel(p.state, "compParallel", "BLEND", violet)
 {
@@ -88,7 +100,9 @@ MainPanel::MainPanel(MageAudioProcessor& p)
              &shimmerSwitch,
              &phaserRate, &phaserDepth, &phaserFeedback, &phaserMix, &phaserStages, &phaserSwitch,
              &chorusRate, &chorusDepth, &chorusTone, &chorusMix, &chorusVibrato, &chorusSwitch,
-             &compSustain, &compLevel, &compOn, &compParallel })
+             &compSustain, &compLevel, &compOn, &compParallel,
+             &spellType, &spellGlitchDensity, &spellGlitchSlice, &spellGlitchMix, &spellPitchShift, &spellPitchGlide,
+             &spellPitchMix, &spellSwellAttack, &spellSwellBloom, &spellSwellMix, &spellCast, &spellSwitch })
         addAndMakeVisible(c);
 
     // --- Pedalboard ---
@@ -99,7 +113,8 @@ MainPanel::MainPanel(MageAudioProcessor& p)
         { { &phaserRate, &phaserDepth, &phaserFeedback, &phaserMix }, &phaserStages, &phaserSwitch },
         { { &chorusRate, &chorusDepth, &chorusTone, &chorusMix }, &chorusVibrato, &chorusSwitch },
         { { &delayTime, &delayFeedback, &delayMix }, &delaySync, &delaySwitch },
-        { { &reverbDecay, &reverbSize, &reverbTone, &reverbMix }, nullptr, &reverbSwitch } } };
+        { { &reverbDecay, &reverbSize, &reverbTone, &reverbMix }, nullptr, &reverbSwitch },
+        { { &spellType, &spellGlitchDensity, &spellGlitchSlice, &spellGlitchMix }, &spellCast, &spellSwitch } } };
     for (int s = 0; s < mage::numSlots; ++s)
     {
         addAndMakeVisible(slotTitles[(size_t)s]);
@@ -147,11 +162,17 @@ MainPanel::MainPanel(MageAudioProcessor& p)
         { &chorusRate, "chorusRate" }, { &chorusDepth, "chorusDepth" }, { &chorusTone, "chorusTone" },
         { &chorusMix, "chorusMix" }, { &chorusVibrato, "chorusVibrato" }, { &chorusSwitch, "chorusEnabled" },
         { &compSustain, "compSustain" }, { &compLevel, "compLevel" }, { &compOn, "compEnabled" },
-        { &compParallel, "compParallel" } };
+        { &compParallel, "compParallel" },
+        { &spellType, "spellType" }, { &spellGlitchDensity, "spellGlitchDensity" }, { &spellGlitchSlice, "spellGlitchSlice" },
+        { &spellGlitchMix, "spellGlitchMix" }, { &spellPitchShift, "spellPitchShift" }, { &spellPitchGlide, "spellPitchGlide" },
+        { &spellPitchMix, "spellPitchMix" }, { &spellSwellAttack, "spellSwellAttack" }, { &spellSwellBloom, "spellSwellBloom" },
+        { &spellSwellMix, "spellSwellMix" }, { &spellCast, "spellCast" }, { &spellSwitch, "spellEnabled" } };
     for (auto& [control, id] : learnables)
         control->addMouseListener(this, true);
 
     shimmerFifth.setTooltip("Shift the shimmer up a fifth instead of an octave");
+    spellCast.setTooltip("CAST: Glitch stutters every step, Pitch goes fully wet like a whammy, Swell blooms behind the note");
+    spellType.getSlider().setTooltip("Choose the spell: Glitch, Pitch or Swell");
 
     // --- Presets ---
     presetBox.setJustificationType(juce::Justification::centredLeft);
@@ -197,6 +218,12 @@ MainPanel::MainPanel(MageAudioProcessor& p)
         syncWatcher = std::make_unique<juce::ParameterAttachment>(*sync,
             [this](float v) { updateDelayTimeVisibility(v > 0.5f); }, nullptr);
         syncWatcher->sendInitialUpdate();
+    }
+
+    // --- Spell pedal: its three knobs change with the chosen spell ---
+    if (auto* type = p.state.getParameter("spellType"))
+    {
+        spellTypeWatcher = std::make_unique<juce::ParameterAttachment>(*type, [this](float) { layoutPedals(); applyTheme(); }, nullptr);
     }
 
     // --- Channel: swaps the first two pedals and the whole theme ---
@@ -263,6 +290,9 @@ void MainPanel::layoutPedals()
         view.footswitch->setVisible(false);
     }
     delayDivision.setVisible(false);
+    for (auto* k : { &spellPitchShift, &spellPitchGlide, &spellPitchMix, &spellSwellAttack, &spellSwellBloom, &spellSwellMix })
+        k->setVisible(false);
+    const int spell = currentIndex(processor.state, "spellType");
 
     const bool sync = currentIndex(processor.state, "delaySync") > 0;
     for (int s = 0; s < mage::numSlots; ++s)
@@ -292,6 +322,18 @@ void MainPanel::layoutPedals()
             delayDivision.setBounds(delayTime.getBounds());
             delayTime.setVisible(!sync);
             delayDivision.setVisible(sync);
+        }
+        if (type == (int)mage::Pedal::spell && spell > 0)
+        {
+            Knob* glitchKnobs[3] = { &spellGlitchDensity, &spellGlitchSlice, &spellGlitchMix };
+            Knob* alt[2][3] = { { &spellPitchShift, &spellPitchGlide, &spellPitchMix },
+                                { &spellSwellAttack, &spellSwellBloom, &spellSwellMix } };
+            for (int k = 0; k < 3; ++k)
+            {
+                alt[spell - 1][k]->setBounds(glitchKnobs[k]->getBounds());
+                alt[spell - 1][k]->setVisible(true);
+                glitchKnobs[k]->setVisible(false);
+            }
         }
         slotTitles[(size_t)s].setBounds(layout::i(r.getX() + 24.0f, r.getY() + 10.0f, r.getWidth() - 48.0f, 56.0f));
     }
@@ -381,6 +423,9 @@ void MainPanel::applyTheme()
         if (view.toggle != nullptr) view.toggle->setAccent(a);
         view.footswitch->setAccent(a);
         if (boardSlot(s) == (int)mage::Pedal::delay) delayDivision.setAccent(a);
+        if (boardSlot(s) == (int)mage::Pedal::spell)
+            for (auto* k : { &spellPitchShift, &spellPitchGlide, &spellPitchMix, &spellSwellAttack, &spellSwellBloom, &spellSwellMix })
+                k->setAccent(a);
         slotTitles[(size_t)s].accent = a;
     }
     inMeter.setColours(blue, cyan);

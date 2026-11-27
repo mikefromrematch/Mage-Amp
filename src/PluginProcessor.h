@@ -1,6 +1,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "dsp/AmpDSP.h"
+#include "dsp/SpellDSP.h"
 #include "PresetManager.h"
 #include "MidiLearn.h"
 #include "Pedals.h"
@@ -60,6 +61,7 @@ private:
     // crossfade when it's switched on or off.
     void runPedal(int type, float* L, float* R, int n);
     void processPedal(mage::Pedal, float* L, float* R, int n);
+    void processSpellPedal(float* L, float* R, int n);
     void resetPedalState(int type);
 
     using Biquad = mage::dsp::Biquad;
@@ -87,6 +89,12 @@ private:
     mage::dsp::Phaser phaser;
     mage::dsp::ChorusVibrato chorus;
     mage::dsp::Compressor compressor;               // front of the chain
+    mage::spell::Glitch spellGlitch;                // Spell pedal engines (base rate)
+    mage::spell::Pitch spellPitch;
+    mage::spell::Swell spellSwell;
+    juce::AudioBuffer<float> spellDry;
+    juce::SmoothedValue<float> spellCastS;
+    int lastSpellType = -1;
     // The drive pedal can sit anywhere on the board, so it has its own 4x oversampling.
     juce::dsp::Oversampling<float> driveOversampler { 1, oversamplingOrder,
         juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false };

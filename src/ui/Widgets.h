@@ -51,7 +51,7 @@ void drawScrew(juce::Graphics&, juce::Point<float> centre, float radius, juce::C
 
 // The MAGE section runes (one per part of the amp), drawn on a 48-unit grid.
 enum class Rune { gain, equalizer, presence, depth, power, gate, octave, drive, delay, reverb, cabinet, output,
-                  shimmer, freeze, phaser, chorus, compressor };
+                  shimmer, freeze, phaser, chorus, compressor, spell };
 // Full-colour rune in `area` (kept square). With `mono` set, every stroke uses that colour instead.
 void drawSectionRune(juce::Graphics&, Rune, juce::Rectangle<float> area, float alpha = 1.0f,
                      juce::Colour mono = {});
@@ -213,7 +213,7 @@ public:
 };
 
 // The brush mark and wordmark, tinted with the theme's gradient at paint time.
-enum class Logo { mark, wordmark };
+enum class Logo { mark, wordmark, spellSigil };
 void drawLogo(juce::Graphics&, Logo, juce::Rectangle<float> area);
 float logoAspect(Logo);
 
